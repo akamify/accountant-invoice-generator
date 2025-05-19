@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import InvoiceCard from "@/components/InvoiceCard";
 import ThreeDBackground from "@/components/ThreeDBackground";
 import { Plus } from "lucide-react";
+import Navigation from "@/components/Navigation";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,12 +23,17 @@ const Dashboard = () => {
   }, [isAuthenticated, isLoading, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && user) {
+    if (isAuthenticated && user?.uid) {
       setIsLoadingInvoices(true);
-      // Fetch user's invoices
-      const userInvoices = getUserInvoices(user._id);
-      setInvoices(userInvoices);
-      setIsLoadingInvoices(false);
+      try {
+        // Fetch user's invoices
+        const userInvoices = getUserInvoices(user.uid);
+        setInvoices(userInvoices);
+      } catch (error) {
+        console.error('Error loading invoices:', error);
+      } finally {
+        setIsLoadingInvoices(false);
+      }
     }
   }, [isAuthenticated, user]);
 
@@ -37,8 +43,9 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <Navigation />
       <ThreeDBackground />
-      <main className="flex-1 container py-8">
+      <main className="flex-1 container py-8 px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>

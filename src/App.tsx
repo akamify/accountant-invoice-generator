@@ -16,6 +16,10 @@ import CreateInvoice from "./pages/CreateInvoice";
 import InvoiceDetails from "./pages/InvoiceDetails";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import { ForgotPassword } from "./components/auth/ForgotPassword";
+import { ResetPassword } from "./components/auth/ResetPassword";
+import { VerifyEmail } from "./components/auth/VerifyEmail";
+import OtpVerification from "./components/auth/OtpVerification";
 
 // Components
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -72,6 +76,31 @@ const App = () => {
                   <Route path="/signup" element={
                     <RedirectIfAuthenticated>
                       <Signup />
+                    </RedirectIfAuthenticated>
+                  } />
+                  
+                  {/* Auth pages - no need to be protected */}
+                  <Route path="/forgot-password" element={
+                    <RedirectIfAuthenticated>
+                      <ForgotPassword />
+                    </RedirectIfAuthenticated>
+                  } />
+                  
+                  <Route path="/reset-password" element={
+                    <RedirectIfAuthenticated>
+                      <ResetPassword />
+                    </RedirectIfAuthenticated>
+                  } />
+                  
+                  <Route path="/verify-email" element={
+                    <RedirectIfAuthenticated>
+                      <VerifyEmail />
+                    </RedirectIfAuthenticated>
+                  } />
+                  
+                  <Route path="/verify-otp" element={
+                    <RedirectIfAuthenticated>
+                      <OtpVerification />
                     </RedirectIfAuthenticated>
                   } />
                   

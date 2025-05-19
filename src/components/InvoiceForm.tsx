@@ -19,7 +19,7 @@ export default function InvoiceForm() {
     clientName: "",
     clientEmail: "",
     clientAddress: "",
-    companyName: user?.name || "",
+    companyName: user?.displayName || "",
     companyAddress: "",
     companyEmail: user?.email || "",
     invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
@@ -140,22 +140,25 @@ export default function InvoiceForm() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user?._id) {
+    if (!user?.uid) {
       toast.error("You must be logged in to create an invoice");
       return;
     }
 
     try {
-      const invoice = createInvoice(user._id, {
+      const invoice = createInvoice(user.uid, {
         ...invoiceData,
         discountRate,
       });
       
       toast.success("Invoice created successfully!");
-      navigate(`/invoices/${invoice.id}`);
+      // Redirect to dashboard after a short delay to show the success message
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1000);
     } catch (error) {
       toast.error("Failed to create invoice");
       console.error(error);

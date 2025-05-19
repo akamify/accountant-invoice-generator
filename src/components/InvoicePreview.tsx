@@ -3,42 +3,72 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InvoiceData } from "@/types/invoice";
-import { generatePDF, downloadPDF } from "@/utils/pdfGenerator";
+import html2canvas from "html2canvas";
 import { toast } from "sonner";
-import { Download, FileText, Printer } from "lucide-react";
+import { Share2, Printer, Download } from "lucide-react";
+import { jsPDF } from "jspdf";
 
 interface InvoicePreviewProps {
   invoice: InvoiceData;
 }
 
 export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
-  const [pdfUrl, setPdfUrl] = useState<string>("");
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   
-  const generateInvoicePDF = async () => {
-    setIsGenerating(true);
-    
+  const handleDownloadPDF = async () => {
     try {
-      const url = await generatePDF("invoice-preview", invoice);
-      setPdfUrl(url);
-      toast.success("PDF generated successfully");
+      setIsDownloading(true);
+      const element = document.getElementById('invoice-preview');
+      if (!element) return;
+      
+      const canvas = await html2canvas(element, {
+        scale: window.devicePixelRatio, // Higher quality
+        useCORS: true,
+        logging: false,
+        scrollY: -window.scrollY
+      } as any); // Type assertion to bypass TypeScript error for scale property
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
+      
+      toast.success("Invoice downloaded successfully!");
     } catch (error) {
-      console.error("PDF generation error:", error);
-      toast.error("Failed to generate PDF");
+      console.error('Error generating PDF:', error);
+      toast.error("Failed to download invoice");
     } finally {
-      setIsGenerating(false);
+      setIsDownloading(false);
     }
   };
   
-  const handleDownloadPDF = () => {
-    if (!pdfUrl) {
-      generateInvoicePDF().then(() => {
-        if (pdfUrl) {
-          downloadPDF(pdfUrl, `Invoice-${invoice.invoiceNumber}.pdf`);
-        }
+  const handleShare = async () => {
+    if (!navigator.share) {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied to clipboard!");
+      return;
+    }
+
+    try {
+      setIsSharing(true);
+      await navigator.share({
+        title: `Invoice #${invoice.invoiceNumber}`,
+        text: `Invoice #${invoice.invoiceNumber} from ${invoice.companyName}`,
+        url: window.location.href,
       });
-    } else {
-      downloadPDF(pdfUrl, `Invoice-${invoice.invoiceNumber}.pdf`);
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error('Error sharing:', error);
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Link copied to clipboard!");
+      }
+    } finally {
+      setIsSharing(false);
     }
   };
   
@@ -51,22 +81,22 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       <div className="flex items-center justify-end gap-4 print:hidden">
         <Button
           variant="outline"
-          onClick={generateInvoicePDF}
-          disabled={isGenerating}
+          onClick={handleDownloadPDF}
+          disabled={isDownloading}
           className="flex items-center gap-2"
         >
-          <FileText size={16} />
-          {isGenerating ? "Generating PDF..." : "Generate PDF"}
+          <Download size={16} />
+          {isDownloading ? 'Downloading...' : 'Download PDF'}
         </Button>
         
         <Button
           variant="outline"
-          onClick={handleDownloadPDF}
-          disabled={isGenerating && !pdfUrl}
+          onClick={handleShare}
+          disabled={isSharing}
           className="flex items-center gap-2"
         >
-          <Download size={16} />
-          Download PDF
+          <Share2 size={16} />
+          {isSharing ? 'Sharing...' : 'Share'}
         </Button>
         
         <Button
