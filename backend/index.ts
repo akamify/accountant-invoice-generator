@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/glow-invoice';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://glow-invoice:arafaat3250@cluster0.xixxqmr.mongodb.net/';
 
 console.log('Starting server...');
 console.log('Environment:', process.env.NODE_ENV || 'development');
