@@ -8,58 +8,42 @@ import { errorHandler } from './middleware/error';
 
 const app = express();
 
-// Enable pre-flight across-the-board
-app.options('*', cors());
-
 // CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://glow-invoice.vercel.app',
-  'https://glow-invoice.onrender.com',
-  'https://glow-invoice.vercel.app/'
+  'https://glow-invoice.onrender.com'
 ];
 
-// Configure CORS with specific options
-const corsOptions = {
-  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin) || allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
-      callback(null, true);
-    } else {
-      console.log('Blocked by CORS:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
-  maxAge: 600 // 10 minutes
-};
-
-// Apply CORS middleware
-app.use(cors(corsOptions));
-
-// Handle preflight requests
-app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+// Create CORS middleware function
+const corsMiddleware: express.RequestHandler = (req, res, next) => {
   const origin = req.headers.origin || '';
-  if (allowedOrigins.includes(origin)) {
+  
+  // Check if the origin is in the allowed list
+  if (allowedOrigins.some(allowedOrigin => 
+    origin === allowedOrigin || 
+    origin.startsWith(allowedOrigin.replace(/\/$/, ''))
+  )) {
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
+    res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
+    res.header('Access-Control-Max-Age', '600');
   }
-  
+
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
+    res.status(200).end();
     return;
   }
-  
+
   next();
-});
+};
+
+// Apply CORS middleware to all routes
+app.use(corsMiddleware);
 
 // Other middleware
 app.use(express.json({ limit: '10kb' }));
