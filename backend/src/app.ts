@@ -8,30 +8,62 @@ import { errorHandler } from './middleware/error';
 
 const app = express();
 
-// Middleware
+// Enable pre-flight across-the-board
+app.options('*', cors());
+
+// CORS configuration
 const allowedOrigins = [
-  'http://localhost:5173', // Vite default port
-  'http://localhost:3000', // Create React App default port
-  'https://glow-invoice.vercel.app', // Production frontend
-  'https://glow-invoice.onrender.com' // Production backend
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://glow-invoice.vercel.app',
+  'https://glow-invoice.onrender.com',
+  'https://glow-invoice.vercel.app/'
 ];
 
-app.use(cors({
-  origin: function(origin, callback) {
+// Configure CORS with specific options
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+    if (allowedOrigins.includes(origin) || allowedOrigins.some(allowed => origin.startsWith(allowed.replace(/\/$/, '')))) {
+      callback(null, true);
+    } else {
+      console.log('Blocked by CORS:', origin);
+      callback(new Error('Not allowed by CORS'));
     }
-    return callback(null, true);
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json());
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 600 // 10 minutes
+};
+
+// Apply CORS middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests
+app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const origin = req.headers.origin || '';
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  }
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+    return;
+  }
+  
+  next();
+});
+
+// Other middleware
+app.use(express.json({ limit: '10kb' }));
+app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 app.use(morgan('dev'));
 
