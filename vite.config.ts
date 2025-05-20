@@ -14,6 +14,22 @@ export default defineConfig(({ command, mode }) => ({
     outDir: 'dist',
     assetsDir: 'assets',
     emptyOutDir: true,
+    manifest: true,
+    rollupOptions: {
+      input: {
+        main: './index.html',
+      },
+      output: {
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name === 'site.webmanifest') {
+            return 'site.webmanifest';
+          }
+          return 'assets/[name]-[hash][extname]';
+        }
+      }
+    },
   },
   plugins: [
     react(),

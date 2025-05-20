@@ -4,5 +4,10 @@
 /*.mjs
   Content-Type: application/javascript
 
-  /*.webmanifest
+/*.webmanifest
   Content-Type: application/manifest+json
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
