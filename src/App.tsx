@@ -16,10 +16,11 @@ import CreateInvoice from "./pages/CreateInvoice";
 import InvoiceDetails from "./pages/InvoiceDetails";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { VerifyEmail } from "./components/auth/VerifyEmail";
-import OtpVerification from "./components/auth/OtpVerification";
 
 // Components
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -30,10 +31,22 @@ const queryClient = new QueryClient();
 
 // Redirect to dashboard if user is already authenticated
 const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+  const { isAuthenticated, isLoading, currentUser } = useAuth();
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || '/';
+
+  // Don't redirect if we're still loading or already on the target page
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // Only redirect if user is authenticated and not already on the dashboard
+  if (isAuthenticated && currentUser?.emailVerified && location.pathname !== '/dashboard') {
+    return <Navigate to="/dashboard" state={{ from: from }} replace />;
   }
   
   return <>{children}</>;
@@ -98,12 +111,6 @@ const App = () => {
                     </RedirectIfAuthenticated>
                   } />
                   
-                  <Route path="/verify-otp" element={
-                    <RedirectIfAuthenticated>
-                      <OtpVerification />
-                    </RedirectIfAuthenticated>
-                  } />
-                  
                   {/* Protected routes */}
                   <Route path="/dashboard" element={
                     <ProtectedRoute>
@@ -128,6 +135,10 @@ const App = () => {
                       <Profile />
                     </ProtectedRoute>
                   } />
+                  
+                  {/* Legal pages */}
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
                   
                   {/* Catch all route */}
                   <Route path="*" element={<NotFound />} />

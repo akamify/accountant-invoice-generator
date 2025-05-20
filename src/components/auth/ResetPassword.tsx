@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
 
 export function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -16,11 +17,12 @@ export function ResetPassword() {
   const [isLoading, setIsLoading] = useState(true);
   const [isValidCode, setIsValidCode] = useState(false);
   const [oobCode, setOobCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const code = searchParams.get('oobCode');
     if (!code) {
-      toast.error('Invalid password reset link');
+      setError('Invalid password reset link');
       setIsLoading(false);
       return;
     }
@@ -34,7 +36,9 @@ export function ResetPassword() {
       const email = await verifyPasswordResetCode(code);
       setEmail(email);
       setIsValidCode(true);
+      setError(null);
     } catch (error) {
+      setError('Invalid or expired password reset link');
       toast.error('Invalid or expired password reset link');
     } finally {
       setIsLoading(false);
@@ -43,13 +47,16 @@ export function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     
     if (newPassword !== confirmPassword) {
+      setError("Passwords don't match");
       toast.error("Passwords don't match");
       return;
     }
 
     if (newPassword.length < 6) {
+      setError('Password should be at least 6 characters');
       toast.error('Password should be at least 6 characters');
       return;
     }
@@ -58,10 +65,12 @@ export function ResetPassword() {
       setIsLoading(true);
       await confirmPasswordReset(oobCode, newPassword);
       toast.success('Password has been reset successfully!');
-      navigate('/login');
-    } catch (error) {
+      navigate('/login', { replace: true });
+    } catch (error: any) {
       console.error('Error resetting password:', error);
-      toast.error('Failed to reset password. The link may have expired.');
+      const errorMessage = error.message || 'Failed to reset password. The link may have expired.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +79,7 @@ export function ResetPassword() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }

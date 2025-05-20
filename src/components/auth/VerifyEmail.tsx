@@ -4,6 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { applyActionCode } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -23,9 +25,8 @@ export function VerifyEmail() {
       }
 
       try {
-        // In a real app, you would verify the email using the oobCode
-        // For now, we'll just simulate a successful verification
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Verify the email using Firebase's applyActionCode
+        await applyActionCode(auth, oobCode);
         
         // Reload user to get the latest email verification status
         await reloadUser();
@@ -37,10 +38,31 @@ export function VerifyEmail() {
         setTimeout(() => {
           navigate('/dashboard');
         }, 3000);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Email verification error:', error);
+        
+        let errorMessage = 'Failed to verify email. The link may have expired or is invalid.';
+        
+        // Handle specific Firebase Auth errors
+        switch (error.code) {
+          case 'auth/expired-action-code':
+            errorMessage = 'The verification link has expired. Please request a new one.';
+            break;
+          case 'auth/invalid-action-code':
+            errorMessage = 'Invalid verification link. Please request a new one.';
+            break;
+          case 'auth/user-disabled':
+            errorMessage = 'This user account has been disabled.';
+            break;
+          case 'auth/user-not-found':
+            errorMessage = 'No user found with this email address.';
+            break;
+          default:
+            console.error('Unhandled error during email verification:', error);
+        }
+        
         setStatus('error');
-        setMessage('Failed to verify email. The link may have expired or is invalid.');
+        setMessage(errorMessage);
       }
     };
 

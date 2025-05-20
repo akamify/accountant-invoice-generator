@@ -1,28 +1,51 @@
 import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
-export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requireEmailVerification?: boolean;
+}
+
+export function ProtectedRoute({ 
+  children, 
+  requireEmailVerification = true 
+}: ProtectedRouteProps) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const from = (location.state as any)?.from?.pathname || '/';
 
+  // Handle redirects based on auth state
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      navigate('/login', { replace: true });
+    if (!isLoading) {
+      // If not authenticated, redirect to login
+      if (!isAuthenticated) {
+        if (location.pathname !== '/login') {
+          navigate('/login', { 
+            replace: true,
+            state: { from: location.pathname }
+          });
+        }
+      }
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isLoading, isAuthenticated, location.pathname, navigate]);
 
+  // Show loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
+  // If not authenticated, redirect to login
   if (!isAuthenticated) {
-    return null;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // User is authenticated
   return <>{children}</>;
 }
