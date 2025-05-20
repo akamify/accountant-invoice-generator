@@ -18,6 +18,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import DeveloperInfo from "./pages/DeveloperInfo";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { VerifyEmail } from "./components/auth/VerifyEmail";
@@ -26,6 +27,7 @@ import { VerifyEmail } from "./components/auth/VerifyEmail";
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useEffect } from 'react';
 import Navigation from '@/components/Navigation';
+import Footer from '@/components/Footer';
 
 const queryClient = new QueryClient();
 
@@ -73,8 +75,10 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <ScrollToTop />
-              <main className="flex-1">
-                <Routes>
+              <div className="min-h-screen flex flex-col">
+                <Navigation />
+                <main className="flex-1">
+                  <Routes>
                   {/* Public routes */}
                   <Route path="/" element={<Index />} />
                   
@@ -139,11 +143,14 @@ const App = () => {
                   {/* Legal pages */}
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/developer" element={<DeveloperInfo />} />
                   
                   {/* Catch all route */}
                   <Route path="*" element={<NotFound />} />
-                </Routes>
-              </main>
+                  </Routes>
+                </main>
+                <Footer />
+              </div>
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import ThreeDBackground from "@/components/ThreeDBackground";
-import Navigation from "@/components/Navigation";
 import { ErrorBoundary } from "react-error-boundary";
 import { Suspense } from "react";
 
@@ -22,7 +21,6 @@ const Index = () => {
           <ThreeDBackground />
         </Suspense>
       </ErrorBoundary>
-      <Navigation />
 
       <div className="flex-1 container max-w-6xl py-12 flex flex-col">
         <main className="flex-1 flex flex-col md:flex-row items-center gap-12">
@@ -62,21 +60,29 @@ const Index = () => {
             </div>
           </div>
 
-          {!isAuthenticated && (
-            <div className="w-full md:w-[400px] flex-shrink-0 mt-8 md:mt-0 animate-float">
+          <div className={`w-full md:w-1/2 flex-shrink-0 mt-12 md:mt-0 ${!isAuthenticated ? 'animate-float' : ''}`}>
+            <div className="relative">
+              <div className="absolute -z-10 w-full h-full bg-gradient-to-r from-primary/10 to-purple-500/10 dark:from-primary/20 dark:to-purple-500/20 rounded-2xl blur-3xl -inset-4" />
               <img 
-                src="https://cdn.pixabay.com/photo/2018/04/06/15/26/invoice-3296202_1280.png" 
-                alt="Invoice illustration" 
-                className="h-40 w-auto mx-auto mb-6 drop-shadow-xl" 
+                src="./download.png" 
+                alt="Glow Invoice Illustration" 
+                className="w-full h-auto max-w-lg mx-auto drop-shadow-2xl transition-all duration-300 hover:scale-105" 
               />
-              <div className="text-center">
-                <p className="mb-4 text-muted-foreground">Sign up or log in to create and manage your invoices</p>
-                <Button onClick={() => navigate('/signup')} size="lg" className="w-full">
-                  Get Started
-                </Button>
-              </div>
             </div>
-          )}
+            {!isAuthenticated && (
+              <div className="text-center mt-8 p-6 bg-card rounded-xl shadow-sm">
+                <p className="mb-4 text-muted-foreground">Join thousands of professionals who trust Glow Invoice for their billing needs</p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button onClick={() => navigate('/signup')} size="lg" className="w-full sm:w-auto">
+                    Start Free Trial
+                  </Button>
+                  <Button onClick={() => navigate('/login')} variant="outline" size="lg" className="w-full sm:w-auto">
+                    Sign In
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
