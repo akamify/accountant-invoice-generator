@@ -1,5 +1,8 @@
 # Glow Invoice Creator
 
+[![Live Demo](https://img.shields.io/badge/Visit%20Live%20Demo-https%3A%2F%2Fglow--invoice.vercel.app-brightgreen?style=for-the-badge&logo=vercel)](https://glow-invoice.vercel.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+
 A modern, responsive invoice creation and management application built with React, TypeScript, and shadcn/ui.
 
 ## Features
@@ -83,7 +86,31 @@ This project can be easily deployed to Vercel, Netlify, or any other static host
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+```
+MIT License
+
+Copyright (c) 2025 Yasir Arafaat
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
 
 ## Acknowledgements
 
