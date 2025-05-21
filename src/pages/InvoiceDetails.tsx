@@ -6,7 +6,6 @@ import { InvoiceData } from "@/types/invoice";
 import { getInvoiceById } from "@/services/invoiceService";
 import InvoicePreview from "@/components/InvoicePreview";
 import ThreeDBackground from "@/components/ThreeDBackground";
-import Navigation from "@/components/Navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -60,8 +59,6 @@ const InvoiceDetails = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <ThreeDBackground />
-      <Navigation />
-      
       <main className="flex-1 container py-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div className="flex items-center gap-2">

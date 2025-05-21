@@ -1,10 +1,8 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import InvoiceForm from "@/components/InvoiceForm";
 import ThreeDBackground from "@/components/ThreeDBackground";
-import Navigation from "@/components/Navigation";
 
 const CreateInvoice = () => {
   const navigate = useNavigate();
@@ -21,18 +19,15 @@ const CreateInvoice = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen bg-background">
       <ThreeDBackground />
-      <Navigation />
-      
-      <main className="flex-1 container py-8">
+      <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold">Create Invoice</h1>
           <p className="text-muted-foreground">Fill out the form below to create a new invoice</p>
         </div>
-        
         <InvoiceForm />
-      </main>
+      </div>
     </div>
   );
 };
