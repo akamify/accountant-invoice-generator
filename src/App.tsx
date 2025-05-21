@@ -65,23 +65,20 @@ const ScrollToTop = () => {
   return null;
 };
 
-const App = () => {
+// Main app content that needs router context
+const AppContent = () => {
+  // List of routes where we don't want to show Navigation and Footer
+  const hideNavAndFooter = ['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'];
+  const location = useLocation();
+  const shouldHideNavAndFooter = hideNavAndFooter.some(path => 
+    location.pathname.startsWith(path)
+  );
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system">
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}>
-              <ScrollToTop />
-              <div className="min-h-screen flex flex-col">
-                <Navigation />
-                <main className="flex-1">
-                  <Routes>
+    <div className="min-h-screen flex flex-col">
+      {!shouldHideNavAndFooter && <Navigation />}
+      <main className="flex-1">
+        <Routes>
                   {/* Public routes */}
                   <Route path="/" element={<Index />} />
                   
@@ -150,10 +147,27 @@ const App = () => {
                   
                   {/* Catch all route */}
                   <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
+        </Routes>
+      </main>
+      {!shouldHideNavAndFooter && <Footer />}
+    </div>
+  );
+};
+
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider defaultTheme="system">
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}>
+              <ScrollToTop />
+              <AppContent />
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
