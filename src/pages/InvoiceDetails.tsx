@@ -23,25 +23,29 @@ const InvoiceDetails = () => {
   }, [isAuthenticated, isLoading, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && id) {
-      setIsLoadingInvoice(true);
-      try {
-        const invoiceData = getInvoiceById(id);
-        
-        if (invoiceData && user?.uid && invoiceData.userId === user.uid) {
-          setInvoice(invoiceData);
-        } else {
-          // Either invoice doesn't exist or doesn't belong to current user
-          console.error('Invoice not found or access denied');
+    const fetchInvoice = async () => {
+      if (isAuthenticated && id) {
+        setIsLoadingInvoice(true);
+        try {
+          const invoiceData = await getInvoiceById(id);
+          
+          if (invoiceData && user?.uid && invoiceData.userId === user.uid) {
+            setInvoice(invoiceData);
+          } else {
+            // Either invoice doesn't exist or doesn't belong to current user
+            console.error('Invoice not found or access denied');
+            navigate("/dashboard");
+          }
+        } catch (error) {
+          console.error('Error loading invoice:', error);
           navigate("/dashboard");
+        } finally {
+          setIsLoadingInvoice(false);
         }
-      } catch (error) {
-        console.error('Error loading invoice:', error);
-        navigate("/dashboard");
-      } finally {
-        setIsLoadingInvoice(false);
       }
-    }
+    };
+
+    fetchInvoice();
   }, [id, isAuthenticated, navigate, user]);
 
   if (isLoading || !isAuthenticated) {
