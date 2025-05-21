@@ -37,7 +37,7 @@ const Index = () => {
                   <Button size="lg" onClick={() => navigate("/dashboard")}>
                     Go to Dashboard
                   </Button>
-                  <Button size="lg" variant="outline" onClick={() => navigate("/create-invoice")}>
+                  <Button size="lg" variant="outline" onClick={() => navigate("/invoice/new")}>
                     Create New Invoice
                   </Button>
                 </>
