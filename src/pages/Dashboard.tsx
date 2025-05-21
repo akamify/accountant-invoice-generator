@@ -22,18 +22,22 @@ const Dashboard = () => {
   }, [isAuthenticated, isLoading, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && user?.uid) {
-      setIsLoadingInvoices(true);
-      try {
-        // Fetch user's invoices
-        const userInvoices = getUserInvoices(user.uid);
-        setInvoices(userInvoices);
-      } catch (error) {
-        console.error('Error loading invoices:', error);
-      } finally {
-        setIsLoadingInvoices(false);
+    const fetchInvoices = async () => {
+      if (isAuthenticated && user?.uid) {
+        setIsLoadingInvoices(true);
+        try {
+          // Fetch user's invoices
+          const userInvoices = await getUserInvoices(user.uid);
+          setInvoices(userInvoices);
+        } catch (error) {
+          console.error('Error loading invoices:', error);
+        } finally {
+          setIsLoadingInvoices(false);
+        }
       }
-    }
+    };
+
+    fetchInvoices();
   }, [isAuthenticated, user]);
 
   if (isLoading || !isAuthenticated) {

@@ -28,6 +28,7 @@ export interface InvoiceData {
   total: number;
   notes: string;
   status: 'draft' | 'pending' | 'paid' | 'overdue';
+  updatedAt?: string;
 }
 
 export interface InvoiceFormData {

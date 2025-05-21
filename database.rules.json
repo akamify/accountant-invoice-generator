@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "users": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId"
+      }
+    },
+    "invoices": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      ".indexOn": ["userId"],
+      "$invoiceId": {
+        ".validate": "newData.child('userId').val() === auth.uid"
+      }
+    },
+    "userInvoices": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId"
+      }
+    }
+  }
+}
