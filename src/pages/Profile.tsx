@@ -8,15 +8,15 @@ import { useState } from 'react';
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
-    name: user?.name || '',
+    displayName: user?.displayName || '',
     email: user?.email || '',
     company: user?.company || '',
     phone: user?.phone || '',
     address: user?.address || '',
   });
-  
+
   const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -30,11 +30,14 @@ export default function Profile() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    const success = await updateUser(formData);
-    setIsLoading(false);
-    
-    if (success) {
+    try {
+      await updateUser(formData);
       navigate('/dashboard');
+    } catch (error) {
+      console.error('Failed to update profile:', error);
+      // Error handling (e.g., show error message to user)
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -56,21 +59,21 @@ export default function Profile() {
             Logout
           </Button>
         </div>
-        
+
         <div className="bg-card p-6 rounded-lg shadow">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
+                <Label htmlFor="displayName">Full Name</Label>
                 <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
+                  id="displayName"
+                  name="displayName"
+                  value={formData.displayName}
                   onChange={handleChange}
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -82,7 +85,7 @@ export default function Profile() {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="company">Company</Label>
                 <Input
@@ -92,7 +95,7 @@ export default function Profile() {
                   onChange={handleChange}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="phone">Phone</Label>
                 <Input
@@ -103,7 +106,7 @@ export default function Profile() {
                   onChange={handleChange}
                 />
               </div>
-              
+
               <div className="space-y-2 md:col-span-2">
                 <Label htmlFor="address">Address</Label>
                 <Input
@@ -114,7 +117,7 @@ export default function Profile() {
                 />
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-4 pt-4">
               <Button
                 type="button"

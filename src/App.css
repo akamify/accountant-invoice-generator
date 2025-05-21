@@ -40,3 +40,14 @@
 .read-the-docs {
   color: #888;
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: A4;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
