@@ -6,6 +6,7 @@ import {
   sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   GoogleAuthProvider,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
@@ -18,7 +19,8 @@ import {
   UserCredential,
   ConfirmationResult,
   sendEmailVerification as sendEmailVerificationFirebase,
-  fetchSignInMethodsForEmail
+  fetchSignInMethodsForEmail,
+  getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, updateDoc, serverTimestamp, getFirestore } from 'firebase/firestore';
 import { auth, database } from '@/lib/firebase';
@@ -227,7 +229,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error('Email and password are required');
       }
 
-      console.log('Attempting to login with email:', email);
       setIsLoading(true);
 
       // Clear any verification-related URL parameters
@@ -241,13 +242,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
 
-      console.log('Calling Firebase signInWithEmailAndPassword');
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      console.log('Firebase login successful, user:', userCredential.user);
 
       // Get additional user data from database
       const userData = await loadUserData(userCredential.user);
-      console.log('User data loaded:', userData);
 
       // Update state with the latest data
       const user = {
@@ -380,7 +378,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login with Google
   const loginWithGoogle = async (): Promise<void> => {
     try {
-      console.log('Starting Google sign in');
       setIsLoading(true);
 
       // Clear any verification-related URL parameters
@@ -390,21 +387,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         url.searchParams.has('apiKey');
 
       if (hasVerificationParams) {
-        console.log('Clearing verification parameters from URL');
         window.history.replaceState({}, document.title, window.location.pathname);
       }
 
-      // Initialize Google provider
-      const googleProvider = new GoogleAuthProvider();
-      googleProvider.setCustomParameters({
-        prompt: 'select_account',  // Forces account selection even when one account is available
-      });
+      // Check if we're in an iframe or have restrictive COOP/COEP headers
+      const isInIframe = window.self !== window.top;
+      const hasRestrictiveHeaders = 
+        window.self !== window.top || 
+        window.crossOriginIsolated;
 
-      console.log('Calling signInWithPopup');
-      const result = await signInWithPopup(auth, googleProvider);
-      const firebaseUser = result.user;
+      // If in iframe or has restrictive headers, use redirect directly
+      if (isInIframe || hasRestrictiveHeaders) {
+        sessionStorage.setItem('redirectAfterSignIn', window.location.pathname);
+        await signInWithRedirect(auth, new GoogleAuthProvider());
+        return;
+      }
 
-      console.log('Google sign in successful, user:', firebaseUser);
+      let result;
+      let firebaseUser;
+
+      try {
+        result = await signInWithPopup(auth, new GoogleAuthProvider());
+        firebaseUser = result.user;
+      } catch (popupError: any) {
+        // If popup is blocked or closed, fall back to redirect
+        if (popupError.code === 'auth/popup-blocked' || 
+            popupError.code === 'auth/popup-closed-by-user' ||
+            popupError.code === 'auth/cancelled-popup-request' ||
+            popupError.message?.includes('Cross-Origin-Opener-Policy')) {
+          toast.info('Please allow popups or continue with redirect');
+          
+          // Store the current URL to redirect back after sign-in
+          sessionStorage.setItem('redirectAfterSignIn', window.location.pathname);
+          
+          // Fall back to redirect
+          await signInWithRedirect(auth, new GoogleAuthProvider());
+          return;
+        }
+        throw popupError; // Re-throw if it's a different error
+      }
+
 
       // If user closed the popup or cancelled the sign-in
       if (!firebaseUser) {
@@ -417,9 +439,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const userData = await loadUserData(firebaseUser);
       const isVerified = firebaseUser.emailVerified;
 
-      console.log('User data loaded:', userData);
-      console.log('Email verified:', isVerified);
-
       // Update state with the latest data
       const updatedUser = {
         ...mapFirebaseUser(firebaseUser)!,
@@ -431,7 +450,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsAuthenticated(true);
       setIsEmailVerified(isVerified);
 
-      console.log('Google login successful, email verified:', isVerified);
       toast.success('Successfully logged in with Google');
 
     } catch (error: any) {
@@ -439,8 +457,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Handle specific error when user closes the popup
       if (error.code === 'auth/popup-closed-by-user' ||
-        error.code === 'auth/cancelled-popup-request' ||
-        error.message?.includes('popup closed')) {
+          error.code === 'auth/cancelled-popup-request' ||
+          error.message?.includes('popup closed')) {
         toast.info('Google sign in was cancelled');
       }
       // Handle account exists with different credential
@@ -451,6 +469,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       else if (error.code === 'auth/operation-not-allowed') {
         toast.error('Google Sign-In is not enabled. Please contact support.');
         console.error('Google Sign-In is not enabled in Firebase Console. Please enable it in Authentication > Sign-in method');
+      }
+      // Handle unauthorized domain
+      else if (error.code === 'auth/unauthorized-domain') {
+        toast.error('This domain is not authorized for Google Sign-In. Please contact support.');
+        console.error('Domain not authorized. Add your domain in Firebase Console > Authentication > Settings > Authorized domains');
       }
       // Handle other errors
       else {
