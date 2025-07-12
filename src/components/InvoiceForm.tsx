@@ -349,7 +349,7 @@ export default function InvoiceForm() {
                       </td>
                       <td className="p-2">
                         <div className="flex items-center">
-                          <span className="mr-1 text-muted-foreground">$</span>
+                          <span className="mr-1 text-muted-foreground">₹</span>
                           <Input
                             type="number"
                             value={item.unitPrice}
@@ -364,7 +364,7 @@ export default function InvoiceForm() {
                         </div>
                       </td>
                       <td className="p-2 text-center">
-                        ${item.amount.toFixed(2)}
+                        ₹{item.amount.toFixed(2)}
                       </td>
                       <td className="p-2 text-center">
                         <Button
@@ -388,7 +388,7 @@ export default function InvoiceForm() {
           <div className="mt-8 space-y-4 ml-auto max-w-xs">
             <div className="flex justify-between">
               <span className="text-sm">Subtotal:</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
             
             <div className="flex items-center justify-between">
@@ -404,7 +404,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>${taxAmount.toFixed(2)}</span>
+              <span>{taxAmount.toFixed(2)}</span>
             </div>
             
             <div className="flex items-center justify-between">
@@ -421,24 +421,24 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>${discountAmount.toFixed(2)}</span>
+              <span>₹{discountAmount.toFixed(2)}</span>
             </div>
             
             {subtotal > 1000 && discountRate === 5 && (
               <div className="text-xs text-accent-foreground">
-                Automatic 5% discount applied for orders over $1,000
+                Automatic 5% discount applied for orders over ₹1,000
               </div>
             )}
             
             {subtotal > 5000 && discountRate === 10 && (
               <div className="text-xs text-accent-foreground">
-                Automatic 10% discount applied for orders over $5,000
+                Automatic 10% discount applied for orders over ₹5,000
               </div>
             )}
             
             <div className="pt-2 border-t flex justify-between font-medium">
               <span>Total:</span>
-              <span className="text-lg">${total.toFixed(2)}</span>
+              <span className="text-lg">₹{total.toFixed(2)}</span>
             </div>
           </div>
           

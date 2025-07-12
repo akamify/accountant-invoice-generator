@@ -35,7 +35,13 @@ const queryClient = new QueryClient();
 const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated, isLoading, currentUser } = useAuth();
   const location = useLocation();
-  const from = (location.state as any)?.from?.pathname || '/';
+  interface LocationState {
+    from?: {
+      pathname?: string;
+    };
+  }
+  const state = location.state as LocationState | null;
+  const from = state?.from?.pathname || '/';
 
   // Don't redirect if we're still loading or already on the target page
   if (isLoading) {
