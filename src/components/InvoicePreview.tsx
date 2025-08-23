@@ -333,8 +333,8 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
                 <tr key={item.id} className="border-b">
                   <td className="py-3 pl-0">{item.description}</td>
                   <td className="py-3 text-right">{item.quantity}</td>
-                  <td className="py-3 text-right">${item.unitPrice.toFixed(2)}</td>
-                  <td className="py-3 text-right pr-0">${item.amount.toFixed(2)}</td>
+                  <td className="py-3 text-right">₹{item.unitPrice.toFixed(2)}</td>
+                  <td className="py-3 text-right pr-0">₹{item.amount.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -345,19 +345,19 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
           <div className="w-72 space-y-2">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal:</span>
-              <span>${invoice.subtotal.toFixed(2)}</span>
+              <span>₹{invoice.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Tax ({invoice.taxRate}%):</span>
-              <span>${invoice.taxAmount.toFixed(2)}</span>
+              <span>₹{invoice.taxAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Discount ({invoice.discountRate}%):</span>
-              <span>${invoice.discountAmount.toFixed(2)}</span>
+              <span>₹{invoice.discountAmount.toFixed(2)}</span>
             </div>
             <div className="flex justify-between pt-2 border-t font-medium text-lg">
               <span>Total:</span>
-              <span>${invoice.total.toFixed(2)}</span>
+              <span>₹{invoice.total.toFixed(2)}</span>
             </div>
           </div>
         </div>

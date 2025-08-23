@@ -43,7 +43,7 @@ export default function InvoiceCard({ invoice }: InvoiceCardProps) {
           </div>
           
           <div className="text-right">
-            <span className="font-semibold">${invoice.total.toFixed(2)}</span>
+            <span className="font-semibold">₹{invoice.total.toFixed(2)}</span>
             <div className={`text-xs px-2 py-1 rounded-full mt-1 inline-block ${getStatusColor()}`}>
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </div>

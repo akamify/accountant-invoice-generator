@@ -30,6 +30,7 @@ const Dashboard = () => {
           const userInvoices = await getUserInvoices(user.uid);
           setInvoices(userInvoices);
         } catch (error) {
+          
           console.error('Error loading invoices:', error);
         } finally {
           setIsLoadingInvoices(false);
