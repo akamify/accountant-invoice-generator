@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import InvoiceForm from "@/components/InvoiceForm";
 import ThreeDBackground from "@/components/ThreeDBackground";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 const CreateInvoice = () => {
   const navigate = useNavigate();
@@ -22,9 +24,19 @@ const CreateInvoice = () => {
     <div className="min-h-screen bg-background">
       <ThreeDBackground />
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Create Invoice</h1>
-          <p className="text-muted-foreground">Fill out the form below to create a new invoice</p>
+        <div className="flex items-center gap-2 mb-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/dashboard")}
+            className="rounded-full"
+          >
+            <ArrowLeft size={18} />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold">Create Invoice</h1>
+            <p className="text-muted-foreground">Fill out the form below to create a new invoice</p>
+          </div>
         </div>
         <InvoiceForm />
       </div>

@@ -13,6 +13,8 @@ export default function Profile() {
     displayName: user?.displayName || '',
     email: user?.email || '',
     company: user?.company || '',
+    companyPanNumber: user?.companyPanNumber || '',
+    companyGstNumber: user?.companyGstNumber || '',
     phone: user?.phone || '',
     address: user?.address || '',
   });
@@ -29,6 +31,19 @@ export default function Profile() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate PAN number format if provided
+    if (formData.companyPanNumber && !/^([A-Z]){5}([0-9]){4}([A-Z]){1}$/.test(formData.companyPanNumber)) {
+      alert("Invalid Company PAN format. Expected format: AAAPA1234A");
+      return;
+    }
+
+    // Validate GST number format if provided
+    if (formData.companyGstNumber && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(formData.companyGstNumber)) {
+      alert("Invalid Company GST format. Expected format: 27ABCDE1234F2Z5");
+      return;
+    }
+
     setIsLoading(true);
     try {
       await updateUser(formData);
@@ -92,6 +107,26 @@ export default function Profile() {
                   id="company"
                   name="company"
                   value={formData.company}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companyPanNumber">Company PAN</Label>
+                <Input
+                  id="companyPanNumber"
+                  name="companyPanNumber"
+                  value={formData.companyPanNumber}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="companyGstNumber">Company GST</Label>
+                <Input
+                  id="companyGstNumber"
+                  name="companyGstNumber"
+                  value={formData.companyGstNumber}
                   onChange={handleChange}
                 />
               </div>

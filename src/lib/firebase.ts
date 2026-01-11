@@ -52,16 +52,6 @@ const initFirebase = () => {
       if (typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
         analytics = getAnalytics(firebaseApp);
       }
-
-      // Connect to emulators in development
-      // if (import.meta.env.DEV) {
-      //   try {
-      //     connectAuthEmulator(auth, 'http://localhost:9099');
-      //     console.log('Connected to Auth Emulator!');
-      //   } catch (e) {
-      //     console.log('Auth emulator not connected', e);
-      //   }
-      // }
       
       return { firebaseApp, auth, database, storage, analytics };
     } catch (error) {

@@ -1,9 +1,8 @@
-
 import { useAuth } from "@/contexts/AuthContext";
-import { ThemeSwitcher } from "./ThemeSwitcher";
+// import { ThemeSwitcher } from "./ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { LogOut, Plus, User, LayoutDashboard, FileText } from "lucide-react";
+import { LogOut, Plus, User, LayoutDashboard, FileText, CreditCard, Receipt, FileBarChart } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,23 +49,33 @@ export default function Navigation() {
             <span className="font-bold text-xl">Glow Invoice</span>
           </Link>
         </div>
-        
+
         <div className="flex items-center gap-4">
-          <ThemeSwitcher />
-          
+          {/* <ThemeSwitcher /> */}
+
           {isLoading ? (
             <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
           ) : isAuthenticated ? (
             <>
-              <Button
-                variant="outline"
-                className="hidden sm:flex items-center gap-2"
-                onClick={() => navigate('/invoices/new')}
-              >
-                <Plus size={16} />
-                New Invoice
-              </Button>
-              
+              <div className="hidden sm:flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => navigate('/invoices/new')}
+                >
+                  <Plus size={16} />
+                  New Invoice
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex items-center gap-2"
+                  onClick={() => navigate('/quotations/new')}
+                >
+                  <FileBarChart size={16} />
+                  New Quotation
+                </Button>
+              </div>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -89,6 +98,18 @@ export default function Navigation() {
                   <DropdownMenuItem onClick={() => navigate('/dashboard')}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/payments')}>
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    <span>Payments</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/transactions')}>
+                    <Receipt className="mr-2 h-4 w-4" />
+                    <span>Transactions</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/quotations')}>
+                    <FileBarChart className="mr-2 h-4 w-4" />
+                    <span>Quotations</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/profile')}>
                     <User className="mr-2 h-4 w-4" />

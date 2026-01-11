@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,17 +6,13 @@ import { toast } from "sonner";
 import { Share2, Printer, Download } from "lucide-react";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import 'jspdf-autotable';
 import { format } from 'date-fns';
 
-// Type declaration for jspdf-autotable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-    lastAutoTable?: {
-      finalY: number;
-    };
-  }
+// Extend jsPDF type to include lastAutoTable
+interface ExtendedJsPDF extends jsPDF {
+  lastAutoTable?: {
+    finalY: number;
+  };
 }
 
 interface InvoicePreviewProps {
@@ -25,191 +20,222 @@ interface InvoicePreviewProps {
 }
 
 export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
+  // Limit the number of line items shown in the preview / PDF
+  const maxItemsToShow = 10;
+  const displayedItems = invoice.items.slice(0, maxItemsToShow);
+
   const [isSharing, setIsSharing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  
+
   const handleDownloadPDF = async () => {
     try {
       setIsDownloading(true);
-      
-      // Create a new PDF document
-      const doc = new jsPDF('p', 'pt', 'a4');
+
+      const doc = new jsPDF("p", "pt", "a4");
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 40;
-      const primaryColor: [number, number, number] = [59, 130, 246]; // blue-500
-      
-      // Add header with colored bar
+      const primaryColor: [number, number, number] = [59, 130, 246];
+
+      // Header
       doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, 0, pageWidth, 80, 'F');
-      
-      // Add company logo/name in header
-      doc.setFontSize(20);
+      doc.rect(0, 0, pageWidth, 120, "F");
       doc.setTextColor(255, 255, 255);
-      doc.setFont('helvetica', 'bold');
-      doc.text( 'GLOW INVOICE', margin, 50);
-      
-      // Main content area
-      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.setLineWidth(0.5);
-      doc.line(margin, 100, pageWidth - margin, 100);
-      
-      // Invoice title and details
-      doc.setFontSize(24);
+      doc.setFontSize(20);
+      doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.text('INVOICE', margin, 130);
-      
-      // Create a two-column layout
-      const column1X = margin;
-      const column2X = pageWidth / 2 + margin / 2;
-      
-      // Invoice info (left column)
-      const infoStartY = 160;
+      doc.setFontSize(22);
+      doc.text("INVOICE", margin, 45);
       doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text('INVOICE #', column1X, infoStartY);
-      doc.text('DATE', column1X, infoStartY + 20);
-      doc.text('DUE DATE', column1X, infoStartY + 40);
-      
-      doc.setFont('helvetica', 'bold');
-      doc.text(invoice.invoiceNumber, column1X + 80, infoStartY);
-      doc.text(format(new Date(invoice.createdAt), 'MMM dd, yyyy'), column1X + 80, infoStartY + 20);
-      doc.text(format(new Date(invoice.dueDate), 'MMM dd, yyyy'), column1X + 80, infoStartY + 40);
-      
-      // Bill to section (left column, below invoice info)
-      doc.setFont('helvetica', 'bold');
-      doc.text('BILL TO:', column1X, infoStartY + 80);
-      doc.setFont('helvetica', 'normal');
-      
-      // Bill From section (right column)
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.text('BILL FROM', column2X, 160);
-      
-      doc.setFont('helvetica', 'normal');
+      doc.setTextColor("#fff");
+      doc.text(`Invoice`, margin, 70);
+      doc.text(`Date`, margin, 90);
+      doc.text(`Due Date`, margin, 110);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor("#fff");
+      doc.text(`#${invoice.invoiceNumber}`, margin + 90, 70);
+      doc.text(format(new Date(invoice.createdAt), "MMM dd, yyyy"), margin + 90, 90);
+      doc.text(format(new Date(invoice.dueDate), "MMM dd, yyyy"), margin + 90, 110);
+
+      // Company (left)
+      const rightX = 40;
+      doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
-      doc.text(invoice.companyName || 'Your Company Name', column2X, 180);
-      doc.text(invoice.companyAddress || '123 Business St, City', column2X, 195);
-      
-      // Adjust the vertical position for the next section
-      const nextSectionY = Math.max(
-        240 + 20, // Below Bill To section
-        infoStartY + 60 // Below invoice info
-      ) + 20; // Add some spacing
-      doc.text(invoice.clientName, margin, 260);
-      invoice.clientEmail && doc.text(invoice.clientEmail, margin, 280);
-      invoice.clientAddress && doc.text(invoice.clientAddress, margin, 300, { maxWidth: 200 });
-      
-      // Prepare table data
-      const tableColumn = [
-        { header: 'DESCRIPTION', dataKey: 'description' },
-        { header: 'QTY', dataKey: 'quantity' },
-        { header: 'PRICE', dataKey: 'unitPrice' },
-        { header: 'AMOUNT', dataKey: 'total' }
-      ];
-      
-      const tableRows = invoice.items.map(item => ({
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: `$${item.unitPrice.toFixed(2)}`,
-        total: `$${(item.quantity * item.unitPrice).toFixed(2)}`
-      }));
-      
-      // Add items table
+      doc.text("From", margin, 150);
+      doc.setFont("helvetica", "normal");
+      doc.text(invoice.companyName, rightX, 170);
+      doc.setFont("helvetica", "normal");
+      let companyY = 185;
+      if (invoice.companyAddress) {
+        doc.text(invoice.companyAddress, rightX, companyY, { maxWidth: pageWidth - rightX - margin });
+        companyY += 15;
+      }
+      if (invoice.companyGstNumber) {
+        doc.text(`GST: ${invoice.companyGstNumber}`, rightX, companyY);
+        companyY += 15;
+      }
+      if (invoice.companyEmail) {
+        doc.text(invoice.companyEmail, rightX, companyY);
+      }
+
+      // Client section - positioned on the right side
+      const clientXPosition = pageWidth / 2 + 20; // Position on the right half of the page
+      let clientY = 150; // Align with the company section
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11);
+      doc.text("Bill To", clientXPosition, 150);
+      clientY += 20;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.text(invoice.clientName, clientXPosition, clientY);
+      clientY += 15;
+      if (invoice.clientAddress) {
+        doc.text(invoice.clientAddress, clientXPosition, clientY, { maxWidth: pageWidth - clientXPosition - margin });
+        clientY += 15;
+      }
+      if (invoice.clientGstNumber) {
+        doc.text(`GST: ${invoice.clientGstNumber}`, clientXPosition, clientY);
+        clientY += 15;
+      }
+      if (invoice.clientEmail) {
+        doc.text(invoice.clientEmail, clientXPosition, clientY);
+      }
+
+      // Items table
+      const tableStartY = clientY + 40;
+      const tableColumns = ["DESCRIPTION", "QTY", "PRICE", "AMOUNT"];
+      const tableBody = displayedItems.map((item) => [
+        item.description,
+        item.quantity.toString(),
+        `Rs. ${item.unitPrice.toFixed(2)}`,
+        `Rs. ${item.amount.toFixed(2)}`,
+      ]);
+
       autoTable(doc, {
-        startY: 340,
-        head: [tableColumn.map(col => col.header)],
-        body: tableRows.map(row => [
-          row.description,
-          row.quantity.toString(),
-          row.unitPrice,
-          row.total
-        ]),
+        startY: tableStartY,
+        head: [tableColumns],
+        body: tableBody,
         margin: { left: margin, right: margin },
         headStyles: {
           fillColor: primaryColor,
           textColor: 255,
-          fontStyle: 'bold',
-          lineWidth: 0.1,
-          fontSize: 10
-        },
-        alternateRowStyles: {
-          fillColor: [249, 250, 251] // gray-50
+          fontStyle: "bold",
+          fontSize: 10,
         },
         styles: {
-          cellPadding: 8,
           fontSize: 10,
+          cellPadding: 6,
           cellWidth: 'wrap',
           lineWidth: 0.1,
           lineColor: [229, 231, 235] // gray-200
         },
         columnStyles: {
-          0: { cellWidth: 'auto', halign: 'left' },
-          1: { cellWidth: 60, halign: 'right' },
-          2: { cellWidth: 80, halign: 'right' },
-          3: { cellWidth: 80, halign: 'right' }
-        }
-      });
-      
-      // Calculate totals
-      const subtotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-      const tax = subtotal * (invoice.taxRate / 100);
-      const discount = subtotal * (invoice.discountRate / 100);
-      const total = subtotal + tax - discount;
-      
-      // Add totals section
-      const finalY = (doc.lastAutoTable?.finalY || 0) + 20;
-      const totalsX = pageWidth - margin - 200;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text('Subtotal:', totalsX, finalY, { align: 'right' });
-      doc.text(`$${subtotal.toFixed(2)}`, pageWidth - margin, finalY, { align: 'right' });
-      
-      if (invoice.taxRate > 0) {
-        doc.text(`Tax (${invoice.taxRate}%):`, totalsX, finalY + 20, { align: 'right' });
-        doc.text(`$${tax.toFixed(2)}`, pageWidth - margin, finalY + 20, { align: 'right' });
+          1: { halign: "right", cellWidth: 40 },
+          2: { halign: "right", cellWidth: 80 },
+          3: { halign: "right", cellWidth: 80 },
+        },
+      } as autoTable.UserOptions);
+
+      const afterTableY =
+        (doc as ExtendedJsPDF).lastAutoTable?.finalY ||
+        tableStartY + 40;
+
+      // Totals
+      let totalsY = afterTableY + 30;
+      const labelX = pageWidth - margin - 150;
+      const valueX = pageWidth - margin;
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+
+      doc.text("Subtotal:", labelX, totalsY, { align: "right" });
+      doc.text(`Rs. ${invoice.subtotal.toFixed(2)}`, valueX, totalsY, { align: "right" });
+      totalsY += 18;
+
+      if (invoice.igst > 0) {
+        doc.text(`IGST (${invoice.igst}%):`, labelX, totalsY, { align: "right" });
+        doc.text(`Rs. ${invoice.igstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        totalsY += 18;
       }
-      
+      if (invoice.cgst > 0) {
+        doc.text(`CGST (${invoice.cgst}%):`, labelX, totalsY, { align: "right" });
+        doc.text(`Rs. ${invoice.cgstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        totalsY += 18;
+      }
+      if (invoice.sgst > 0) {
+        doc.text(`SGST (${invoice.sgst}%):`, labelX, totalsY, { align: "right" });
+        doc.text(`Rs. ${invoice.sgstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        totalsY += 18;
+      }
+
       if (invoice.discountRate > 0) {
-        doc.text(`Discount (${invoice.discountRate}%):`, totalsX, finalY + 40, { align: 'right' });
-        doc.text(`-$${discount.toFixed(2)}`, pageWidth - margin, finalY + 40, { align: 'right' });
+        doc.text(`Discount (${invoice.discountRate}%):`, labelX, totalsY, { align: "right" });
+        doc.text(`Rs. ${invoice.discountAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        totalsY += 18;
       }
-      
-      doc.setFont('helvetica', 'bold');
+
+      doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
-      doc.text('TOTAL:', totalsX, finalY + 70, { align: 'right' });
-      doc.text(`$${total.toFixed(2)}`, pageWidth - margin, finalY + 70, { align: 'right' });
-      
-      // Add payment terms
+      doc.text("TOTAL:", labelX, totalsY, { align: "right" });
+      doc.text(`Rs. ${invoice.total.toFixed(2)}`, valueX, totalsY, { align: "right" });
+
+      // Notes
       if (invoice.notes) {
-        const notesY = finalY + 120;
-        doc.setFont('helvetica', 'bold');
-        doc.text('PAYMENT TERMS', margin, notesY);
-        doc.setFont('helvetica', 'normal');
-        doc.text(invoice.notes, margin, notesY + 20, { maxWidth: pageWidth - margin * 2 });
+        const notesY = totalsY + 40;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("Notes", margin, notesY);
+        doc.setFont("helvetica", "normal");
+        doc.text(invoice.notes, margin, notesY + 16, {
+          maxWidth: pageWidth - margin * 2,
+        });
       }
-      
-      // Add footer
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text(
-        `Thank you for your business! • ${invoice.companyName} • ${invoice.companyEmail}`,
-        pageWidth / 2,
-        doc.internal.pageSize.height - 20,
-        { align: 'center', baseline: 'bottom' }
-      );
-      
-      // Save the PDF
+
+      // Payment details if invoice is paid
+      if (invoice.status === 'paid' && invoice.paymentMode) {
+        const paymentY = invoice.notes ? totalsY + 80 : totalsY + 40;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.text("Payment Details", margin, paymentY);
+        doc.setFont("helvetica", "normal");
+
+        let paymentInfoY = paymentY + 16;
+
+        // Payment Mode
+        doc.text("Payment Mode:", margin, paymentInfoY);
+        const paymentModeText = invoice.paymentMode === 'bank_transfer' ? 'Bank Transfer' :
+          invoice.paymentMode === 'upi' ? 'UPI' :
+            invoice.paymentMode.charAt(0).toUpperCase() + invoice.paymentMode.slice(1);
+        doc.text(paymentModeText, margin + 100, paymentInfoY);
+        paymentInfoY += 15;
+
+        // Transaction ID (except for cash payments)
+        if (invoice.paymentMode !== 'cash' && invoice.transactionId) {
+          doc.text("Transaction ID:", margin, paymentInfoY);
+          doc.text(invoice.transactionId, margin + 100, paymentInfoY);
+          paymentInfoY += 15;
+        }
+
+        // Bank Account or UPI ID
+        if (invoice.paymentMode === 'bank_transfer' && invoice.bankAccount) {
+          doc.text("Bank Account:", margin, paymentInfoY);
+          doc.text(invoice.bankAccount, margin + 100, paymentInfoY);
+        } else if (invoice.paymentMode === 'upi' && invoice.upiId) {
+          doc.text("UPI ID:", margin, paymentInfoY);
+          doc.text(invoice.upiId, margin + 100, paymentInfoY);
+        }
+      }
+
       doc.save(`invoice-${invoice.invoiceNumber}.pdf`);
       toast.success("Invoice downloaded successfully!");
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error("Error generating invoice PDF:", error);
       toast.error("Failed to download invoice");
     } finally {
       setIsDownloading(false);
     }
   };
-  
+
   const handleShare = async () => {
     if (!navigator.share) {
       await navigator.clipboard.writeText(window.location.href);
@@ -234,11 +260,11 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       setIsSharing(false);
     }
   };
-  
+
   const handlePrint = () => {
     window.print();
   };
-  
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-end gap-4 print:hidden">
@@ -251,7 +277,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
           <Download size={16} />
           {isDownloading ? 'Downloading...' : 'Download PDF'}
         </Button>
-        
+
         <Button
           variant="outline"
           onClick={handleShare}
@@ -261,7 +287,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
           <Share2 size={16} />
           {isSharing ? 'Sharing...' : 'Share'}
         </Button>
-        
+
         <Button
           variant="outline"
           onClick={handlePrint}
@@ -271,106 +297,177 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
           Print
         </Button>
       </div>
-      
+
       <Card className="p-8 max-w-4xl mx-auto bg-white dark:bg-card" id="invoice-preview">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold text-primary">INVOICE</h1>
-            <p className="text-muted-foreground mt-1">#{invoice.invoiceNumber}</p>
+        <div className="flex flex-col min-h-[1000px]">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-primary">INVOICE</h1>
+              <p className="text-muted-foreground mt-1">#{invoice.invoiceNumber}</p>
+            </div>
+
+            <div className="text-right">
+              <h2 className="text-xl font-bold">{invoice.companyName}</h2>
+              <p className="whitespace-pre-line text-sm text-muted-foreground mt-1">
+                {invoice.companyAddress}
+                <br />
+                {invoice.companyEmail}
+              </p>
+              {invoice.companyPanNumber && (
+                <p className="text-sm mt-1">
+                  <span className="font-medium">PAN:</span> {invoice.companyPanNumber}
+                </p>
+              )}
+              {invoice.companyGstNumber && (
+                <p className="text-sm mt-1">
+                  <span className="font-medium">GST:</span> {invoice.companyGstNumber}
+                </p>
+              )}
+            </div>
           </div>
-          
-          <div className="text-right">
-            <h2 className="text-xl font-bold">{invoice.companyName}</h2>
-            <p className="whitespace-pre-line text-sm text-muted-foreground mt-1">
-              {invoice.companyAddress}
-              <br />
-              {invoice.companyEmail}
-            </p>
-          </div>
-        </div>
-        
-        <div className="mt-12 grid grid-cols-2 gap-8">
-          <div>
-            <h3 className="font-medium text-muted-foreground mb-2">Bill To</h3>
-            <h4 className="font-semibold">{invoice.clientName}</h4>
-            <p className="whitespace-pre-line text-sm mt-1">
-              {invoice.clientAddress}
-              <br />
-              {invoice.clientEmail}
-            </p>
-          </div>
-          
-          <div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Invoice Date:</span>
-                <span>{new Date(invoice.createdAt).toLocaleDateString()}</span>
+
+          <div className="mt-12 grid grid-cols-2 gap-8">
+            <div>
+              <h3 className="font-medium text-muted-foreground mb-2">Bill To</h3>
+              <h4 className="font-semibold">{invoice.clientName}</h4>
+              <p className="whitespace-pre-line text-sm mt-1">
+                {invoice.clientAddress}
+                <br />
+                {invoice.clientEmail}
+              </p>
+              {invoice.clientPanNumber && (
+                <p className="text-sm mt-1">
+                  <span className="font-medium">PAN:</span> {invoice.clientPanNumber}
+                </p>
+              )}
+              {invoice.clientGstNumber && (
+                <p className="text-sm mt-1">
+                  <span className="font-medium">GST:</span> {invoice.clientGstNumber}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Invoice Date:</span>
+                  <span>{new Date(invoice.createdAt).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Due Date:</span>
+                  <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Status:</span>
+                  <span className="capitalize">{invoice.status}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Due Date:</span>
-                <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Status:</span>
-                <span className="capitalize">{invoice.status}</span>
-              </div>
             </div>
           </div>
-        </div>
-        
-        <div className="mt-12">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-2 pl-0 font-semibold">Description</th>
-                <th className="text-right p-2 font-semibold">Qty</th>
-                <th className="text-right p-2 font-semibold">Unit Price</th>
-                <th className="text-right p-2 pr-0 font-semibold">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items.map((item) => (
-                <tr key={item.id} className="border-b">
-                  <td className="py-3 pl-0">{item.description}</td>
-                  <td className="py-3 text-right">{item.quantity}</td>
-                  <td className="py-3 text-right">₹{item.unitPrice.toFixed(2)}</td>
-                  <td className="py-3 text-right pr-0">₹{item.amount.toFixed(2)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        
-        <div className="mt-8 flex justify-end">
-          <div className="w-72 space-y-2">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Subtotal:</span>
-              <span>₹{invoice.subtotal.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Tax ({invoice.taxRate}%):</span>
-              <span>₹{invoice.taxAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Discount ({invoice.discountRate}%):</span>
-              <span>₹{invoice.discountAmount.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between pt-2 border-t font-medium text-lg">
-              <span>Total:</span>
-              <span>₹{invoice.total.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
-        
-        {invoice.notes && (
+
           <div className="mt-12">
-            <h3 className="font-medium text-muted-foreground mb-2">Notes</h3>
-            <p className="whitespace-pre-line">{invoice.notes}</p>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2 pl-0 font-semibold">Item</th>
+                  <th className="text-right p-2 font-semibold">Qty</th>
+                  <th className="text-right p-2 font-semibold">Unit Price</th>
+                  <th className="text-right p-2 pr-0 font-semibold">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedItems.map((item) => (
+                  <tr key={item.id} className="border-b">
+                    <td className="py-3 pl-0">{item.description}</td>
+                    <td className="py-3 text-right">{item.quantity}</td>
+                    <td className="py-3 text-right">₹{item.unitPrice.toFixed(2)}</td>
+                    <td className="py-3 text-right pr-0">₹{(item.amount || 0).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
-        
-        <div className="mt-12 text-center text-sm text-muted-foreground">
-          <p>Thank you for your business!</p>
+
+          {/* Bottom section pinned to the bottom of the card */}
+          <div className="mt-auto space-y-8">
+            <div className="flex justify-end">
+              <div className="w-72 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>₹{(invoice.subtotal || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">IGST ({invoice.igst || 0}%):</span>
+                  <span>₹{(invoice.igstAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">CGST ({invoice.cgst || 0}%):</span>
+                  <span>₹{(invoice.cgstAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">SGST ({invoice.sgst || 0}%):</span>
+                  <span>₹{(invoice.sgstAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Discount ({invoice.discountRate || 0}%):</span>
+                  <span>₹{(invoice.discountAmount || 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t font-medium text-lg">
+                  <span>Total:</span>
+                  <span>₹{(invoice.total || 0).toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {invoice.notes && (
+              <div>
+                <h3 className="font-medium text-muted-foreground mb-2">Notes</h3>
+                <p className="whitespace-pre-line">{invoice.notes}</p>
+              </div>
+            )}
+
+            {/* Payment Details */}
+            {invoice.status === 'paid' && invoice.paymentMode && (
+              <div className="p-6 bg-muted rounded-lg border">
+                <h3 className="font-medium text-lg mb-4">Payment Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Payment Mode</p>
+                    <p className="font-medium capitalize">
+                      {invoice.paymentMode === 'bank_transfer' ? 'Bank Transfer' :
+                        invoice.paymentMode === 'upi' ? 'UPI' :
+                          invoice.paymentMode.charAt(0).toUpperCase() + invoice.paymentMode.slice(1)}
+                    </p>
+                  </div>
+
+                  {invoice.paymentMode !== 'cash' && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Transaction ID</p>
+                      <p className="font-medium">{invoice.transactionId}</p>
+                    </div>
+                  )}
+
+                  {invoice.paymentMode === 'bank_transfer' && invoice.bankAccount && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Bank Account</p>
+                      <p className="font-medium">{invoice.bankAccount}</p>
+                    </div>
+                  )}
+
+                  {invoice.paymentMode === 'upi' && invoice.upiId && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">UPI ID</p>
+                      <p className="font-medium">{invoice.upiId}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="text-center text-sm text-muted-foreground">
+              <p>This is computer generated invoice.</p>
+            </div>
+          </div>
         </div>
       </Card>
     </div>

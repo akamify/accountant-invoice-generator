@@ -48,6 +48,8 @@ type User = {
   photoURL: string | null;
   role?: string;
   company?: string;
+  companyPanNumber?: string;
+  companyGstNumber?: string;
   phone?: string;
   address?: string;
   createdAt?: number | any; // Allow Firestore Timestamp
@@ -107,11 +109,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const userRef = ref(database, `users/${userId}`);
       const snapshot = await get(userRef);
-      
+
       if (snapshot.exists()) {
         return snapshot.val() as Partial<User>;
       }
-      
+
       return {};
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -340,7 +342,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(userData);
       setIsAuthenticated(true);
 
-// Return the user data
+      // Return the user data
       return {
         user: userData
       };
@@ -392,8 +394,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Check if we're in an iframe or have restrictive COOP/COEP headers
       const isInIframe = window.self !== window.top;
-      const hasRestrictiveHeaders = 
-        window.self !== window.top || 
+      const hasRestrictiveHeaders =
+        window.self !== window.top ||
         window.crossOriginIsolated;
 
       // If in iframe or has restrictive headers, use redirect directly
@@ -411,15 +413,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         firebaseUser = result.user;
       } catch (popupError: any) {
         // If popup is blocked or closed, fall back to redirect
-        if (popupError.code === 'auth/popup-blocked' || 
-            popupError.code === 'auth/popup-closed-by-user' ||
-            popupError.code === 'auth/cancelled-popup-request' ||
-            popupError.message?.includes('Cross-Origin-Opener-Policy')) {
+        if (popupError.code === 'auth/popup-blocked' ||
+          popupError.code === 'auth/popup-closed-by-user' ||
+          popupError.code === 'auth/cancelled-popup-request' ||
+          popupError.message?.includes('Cross-Origin-Opener-Policy')) {
           toast.info('Please allow popups or continue with redirect');
-          
+
           // Store the current URL to redirect back after sign-in
           sessionStorage.setItem('redirectAfterSignIn', window.location.pathname);
-          
+
           // Fall back to redirect
           await signInWithRedirect(auth, new GoogleAuthProvider());
           return;
@@ -457,8 +459,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       // Handle specific error when user closes the popup
       if (error.code === 'auth/popup-closed-by-user' ||
-          error.code === 'auth/cancelled-popup-request' ||
-          error.message?.includes('popup closed')) {
+        error.code === 'auth/cancelled-popup-request' ||
+        error.message?.includes('popup closed')) {
         toast.info('Google sign in was cancelled');
       }
       // Handle account exists with different credential
@@ -536,17 +538,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Reload user data
   const reloadUser = async (): Promise<void> => {
     if (!auth.currentUser) return;
-    
+
     try {
       await auth.currentUser.reload();
       const updatedUser = auth.currentUser;
       const userData = await fetchUserData(updatedUser.uid);
-      
+
       const user = {
         ...mapFirebaseUser(updatedUser)!,
         ...userData
       };
-      
+
       setUser(user);
       setCurrentUser(user);
       setIsAuthenticated(true);

@@ -11,10 +11,10 @@ export const getUserInvoices = async (userId: string): Promise<InvoiceData[]> =>
       orderByChild('userId'),
       equalTo(userId)
     );
-    
+
     const snapshot = await get(invoicesRef);
     if (!snapshot.exists()) return [];
-    
+
     const invoices: InvoiceData[] = [];
     snapshot.forEach((childSnapshot) => {
       invoices.push({
@@ -22,7 +22,7 @@ export const getUserInvoices = async (userId: string): Promise<InvoiceData[]> =>
         ...childSnapshot.val()
       } as InvoiceData);
     });
-    
+
     return invoices;
   } catch (error) {
     console.error('Error fetching user invoices:', error);
@@ -35,7 +35,7 @@ export const getInvoiceById = async (invoiceId: string): Promise<InvoiceData | n
   try {
     const snapshot = await get(ref(database, `invoices/${invoiceId}`));
     if (!snapshot.exists()) return null;
-    
+
     return {
       id: invoiceId,
       ...snapshot.val()
@@ -49,10 +49,22 @@ export const getInvoiceById = async (invoiceId: string): Promise<InvoiceData | n
 // Create a new invoice
 export const createInvoice = async (userId: string, invoiceData: InvoiceFormData): Promise<InvoiceData> => {
   try {
+    console.log('Creating invoice for user:', userId);
+    console.log('Invoice data:', invoiceData);
+
     // Calculate financial values
     const subtotal = invoiceData.items.reduce((sum, item) => sum + item.amount, 0);
-    const taxAmount = (subtotal * invoiceData.taxRate) / 100;
-    
+    console.log('Calculated subtotal:', subtotal);
+
+    // Calculate IGST, SGST, and CGST amounts
+    const igstAmount = (subtotal * invoiceData.igst) / 100;
+    const cgstAmount = (subtotal * invoiceData.cgst) / 100;
+    const sgstAmount = (subtotal * invoiceData.sgst) / 100;
+
+    // Total tax amount
+    const taxAmount = igstAmount + cgstAmount + sgstAmount;
+    console.log('Calculated tax amounts:', { igstAmount, cgstAmount, sgstAmount, taxAmount });
+
     // Apply discount based on total amount
     let discountRate = invoiceData.discountRate;
     if (subtotal > 1000 && discountRate < 5) {
@@ -61,27 +73,35 @@ export const createInvoice = async (userId: string, invoiceData: InvoiceFormData
     if (subtotal > 5000 && discountRate < 10) {
       discountRate = 10;
     }
-    
+
     const discountAmount = (subtotal * discountRate) / 100;
     const total = subtotal + taxAmount - discountAmount;
+    console.log('Calculated discount and total:', { discountRate, discountAmount, total });
 
     const newInvoice: Omit<InvoiceData, 'id'> = {
       userId,
       subtotal,
-      taxAmount,
+      igstAmount,
+      cgstAmount,
+      sgstAmount,
       discountRate,
       discountAmount,
       total,
-      status: 'pending',
+      status: invoiceData.status || 'draft', // Use provided status or default to draft
       ...invoiceData,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
 
+    console.log('Prepared invoice object:', newInvoice);
+
     // Create a new invoice in the database
     const newInvoiceRef = push(ref(database, 'invoices'));
+    console.log('New invoice reference:', newInvoiceRef.key);
+
     await set(newInvoiceRef, newInvoice);
-    
+    console.log('Invoice saved successfully');
+
     return {
       id: newInvoiceRef.key as string,
       ...newInvoice
@@ -97,32 +117,86 @@ export const updateInvoice = async (invoiceId: string, invoiceData: Partial<Invo
   try {
     const invoiceRef = ref(database, `invoices/${invoiceId}`);
     const snapshot = await get(invoiceRef);
-    
+
     if (!snapshot.exists()) return null;
-    
+
     // If items are being updated, recalculate financials
     if (invoiceData.items) {
       const subtotal = invoiceData.items.reduce((sum, item) => sum + item.amount, 0);
-      const taxAmount = (subtotal * (invoiceData.taxRate || snapshot.val().taxRate)) / 100;
-      const discountRate = invoiceData.discountRate || snapshot.val().discountRate;
+
+      // Calculate separate tax amounts
+      const igst = invoiceData.igst !== undefined ? invoiceData.igst : snapshot.val().igst || 0;
+      const cgst = invoiceData.cgst !== undefined ? invoiceData.cgst : snapshot.val().cgst || 0;
+      const sgst = invoiceData.sgst !== undefined ? invoiceData.sgst : snapshot.val().sgst || 0;
+
+      const igstAmount = (subtotal * igst) / 100;
+      const cgstAmount = (subtotal * cgst) / 100;
+      const sgstAmount = (subtotal * sgst) / 100;
+      const totalTaxAmount = igstAmount + cgstAmount + sgstAmount;
+
+      const discountRate = invoiceData.discountRate !== undefined ? invoiceData.discountRate : snapshot.val().discountRate || 0;
       const discountAmount = (subtotal * discountRate) / 100;
-      const total = subtotal + taxAmount - discountAmount;
-      
+      const total = subtotal + totalTaxAmount - discountAmount;
+
       invoiceData = {
         ...invoiceData,
         subtotal,
-        taxAmount,
+        igst,
+        cgst,
+        sgst,
+        igstAmount,
+        cgstAmount,
+        sgstAmount,
         discountRate,
         discountAmount,
         total,
         updatedAt: new Date().toISOString()
       };
     } else {
+      // Handle partial updates for tax rates
+      const currentData = snapshot.val();
+      const subtotal = invoiceData.subtotal !== undefined ? invoiceData.subtotal : currentData.subtotal;
+
+      // Check if any tax rates are being updated
+      const igst = invoiceData.igst !== undefined ? invoiceData.igst : currentData.igst || 0;
+      const cgst = invoiceData.cgst !== undefined ? invoiceData.cgst : currentData.cgst || 0;
+      const sgst = invoiceData.sgst !== undefined ? invoiceData.sgst : currentData.sgst || 0;
+
+      // Only recalculate if tax rates changed
+      if (
+        invoiceData.igst !== undefined ||
+        invoiceData.cgst !== undefined ||
+        invoiceData.sgst !== undefined ||
+        invoiceData.discountRate !== undefined
+      ) {
+        const igstAmount = (subtotal * igst) / 100;
+        const cgstAmount = (subtotal * cgst) / 100;
+        const sgstAmount = (subtotal * sgst) / 100;
+        const totalTaxAmount = igstAmount + cgstAmount + sgstAmount;
+
+        const discountRate = invoiceData.discountRate !== undefined ? invoiceData.discountRate : currentData.discountRate || 0;
+        const discountAmount = (subtotal * discountRate) / 100;
+        const total = subtotal + totalTaxAmount - discountAmount;
+
+        invoiceData = {
+          ...invoiceData,
+          igst,
+          cgst,
+          sgst,
+          igstAmount,
+          cgstAmount,
+          sgstAmount,
+          discountRate,
+          discountAmount,
+          total,
+        };
+      }
+
       invoiceData.updatedAt = new Date().toISOString();
     }
-    
+
     await update(invoiceRef, invoiceData);
-    
+
     // Return the updated invoice
     const updatedSnapshot = await get(invoiceRef);
     return {
