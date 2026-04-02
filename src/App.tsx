@@ -18,7 +18,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import DeveloperInfo from "./pages/DeveloperInfo";
+// import DeveloperInfo from "./pages/DeveloperInfo";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
 import { VerifyEmail } from "./components/auth/VerifyEmail";
@@ -192,7 +192,7 @@ const AppContent = () => {
           {/* Legal pages */}
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/developer" element={<DeveloperInfo />} />
+          {/* <Route path="/developer" element={<DeveloperInfo />} /> */}
 
           {/* Catch all route */}
           <Route path="*" element={<NotFound />} />

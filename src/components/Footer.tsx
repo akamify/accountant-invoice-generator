@@ -56,12 +56,11 @@ const Footer = () => {
             >
               Terms of Service
             </Link>
-            <Link
-              to="/developer"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Developer
-            </Link>
+
+            <p className="text-sm text-muted-foreground">
+              Developed by <b>Raj Singh</b>
+            </p>
+
           </div>
         </div>
       </div>
