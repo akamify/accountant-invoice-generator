@@ -24,6 +24,12 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
+if (!firebaseConfig.databaseURL) {
+  throw new Error(
+    'Missing VITE_FIREBASE_DATABASE_URL in your environment. Add Firebase Realtime Database URL to .env before initializing Firebase.'
+  );
+}
+
 // Initialize Firebase services
 let firebaseApp: FirebaseApp;
 let auth: Auth;
@@ -39,7 +45,7 @@ const initFirebase = () => {
       
       // Initialize Firebase services
       auth = getAuth(firebaseApp);
-      database = getDatabase(firebaseApp);
+      database = getDatabase(firebaseApp, firebaseConfig.databaseURL);
       storage = getStorage(firebaseApp);
       
       // Set persistence
@@ -61,7 +67,7 @@ const initFirebase = () => {
   } else {
     firebaseApp = getApp();
     auth = getAuth(firebaseApp);
-    database = getDatabase(firebaseApp);
+    database = getDatabase(firebaseApp, firebaseConfig.databaseURL);
     storage = getStorage(firebaseApp);
     
     if (typeof window !== 'undefined') {
