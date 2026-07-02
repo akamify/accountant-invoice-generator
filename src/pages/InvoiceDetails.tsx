@@ -36,11 +36,9 @@ const InvoiceDetails = () => {
         try {
           const invoiceData = await getInvoiceById(id);
 
-          if (invoiceData && user?.uid && invoiceData.userId === user.uid) {
+          if (invoiceData) {
             setInvoice(invoiceData);
           } else {
-            // Either invoice doesn't exist or doesn't belong to current user
-            console.error('Invoice not found or access denied');
             navigate("/dashboard");
           }
         } catch (error) {
@@ -159,7 +157,10 @@ const InvoiceDetails = () => {
 
       // Include payment details if marking as paid
       if (newStatus === 'paid') {
+        updateData.amountPaid = invoice.total;
+        updateData.amountDue = 0;
         updateData.paymentMode = paymentMode;
+        updateData.paymentMethod = paymentMode;
         updateData.transactionId = transactionId;
 
         if (paymentMode === 'bank_transfer') {

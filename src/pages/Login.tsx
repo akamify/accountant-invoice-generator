@@ -1,58 +1,27 @@
-
-import { Link } from 'react-router-dom';
-import { LoginForm } from '@/components/auth/LoginForm';
+import { LoginForm } from "@/components/auth/LoginForm";
 
 export default function Login() {
   return (
-    <div className="container relative flex-1 flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
-        <div className="absolute inset-0 bg-zinc-900" />
-        <div className="relative z-20 flex items-center text-lg font-medium">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="mr-2 h-6 w-6"
-          >
-            <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3" />
-          </svg>
-          Glow Invoice
-        </div>
-        <div className="relative z-20 mt-auto">
-          <blockquote className="space-y-2">
-            <p className="text-lg">
-              &ldquo;This invoice generator has saved me countless hours of work and
-              helped me deliver beautiful invoices to my clients faster than
-              ever before.&rdquo;
-            </p>
-            <footer className="text-sm">Sofia Davis</footer>
-          </blockquote>
-        </div>
-      </div>
-      <div className="lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
-          <div className="flex flex-col space-y-2 text-center">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Welcome back
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Enter your email and password to sign in
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto grid min-h-screen max-w-6xl lg:grid-cols-2">
+        <div className="hidden flex-col justify-between bg-slate-900 p-10 text-white lg:flex">
+          <div className="text-lg font-semibold">Accountant Invoice</div>
+          <div className="space-y-4">
+            <h1 className="text-4xl font-bold tracking-tight">Single-admin invoice operations</h1>
+            <p className="text-slate-300">
+              Manage invoices, payments, transactions, and reporting from one secure dashboard.
             </p>
           </div>
-          <LoginForm />
-          <p className="px-8 text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <Link
-              to="/signup"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Sign up
-            </Link>
-          </p>
+          <p className="text-sm text-slate-400">Secure session expires after 24 hours.</p>
+        </div>
+        <div className="flex items-center justify-center px-6 py-12">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="space-y-2 text-center">
+              <h2 className="text-2xl font-semibold tracking-tight">Admin Login</h2>
+              <p className="text-sm text-muted-foreground">Enter the admin password to continue</p>
+            </div>
+            <LoginForm />
+          </div>
         </div>
       </div>
     </div>

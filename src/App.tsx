@@ -1,16 +1,13 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { ThemeProvider } from "./components/ThemeProvider";
+import { useEffect } from "react";
+import AppLayout from "@/components/AppLayout";
 
-// Pages
-import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Signup from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
 import CreateInvoice from "./pages/CreateInvoice";
 import InvoiceDetails from "./pages/InvoiceDetails";
@@ -18,211 +15,80 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-// import DeveloperInfo from "./pages/DeveloperInfo";
 import { ForgotPassword } from "./components/auth/ForgotPassword";
 import { ResetPassword } from "./components/auth/ResetPassword";
-import { VerifyEmail } from "./components/auth/VerifyEmail";
 import Payments from "./pages/Payments";
 import Transactions from "./pages/Transactions";
-import Quotations from "./pages/Quotations";
-import CreateQuotation from "./pages/CreateQuotation";
-import QuotationDetails from "./pages/QuotationDetails";
-
-// Components
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { useEffect } from 'react';
-import Navigation from '@/components/Navigation';
-import Footer from '@/components/Footer';
 import Invoices from "./pages/Invoices";
+import PublicInvoiceDownload from "./pages/PublicInvoiceDownload";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
-// Redirect to dashboard if user is already authenticated
 const RedirectIfAuthenticated = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated, isLoading, currentUser } = useAuth();
-  const location = useLocation();
-  interface LocationState {
-    from?: {
-      pathname?: string;
-    };
-  }
-  const state = location.state as LocationState | null;
-  const from = state?.from?.pathname || '/';
-
-  // Don't redirect if we're still loading or already on the target page
+  const { isAuthenticated, isLoading } = useAuth();
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>
-    );
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
   }
-
-  // Only redirect if user is authenticated and not already on the dashboard
-  if (isAuthenticated && currentUser?.emailVerified && location.pathname !== '/dashboard') {
-    return <Navigate to="/dashboard" state={{ from: from }} replace />;
-  }
-
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };
 
-// Scroll to top on route change
+const RootRedirect = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  return <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />;
+};
+
 const ScrollToTop = () => {
   const { pathname } = useLocation();
-
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
-
   return null;
 };
 
-// Main app content that needs router context
-const AppContent = () => {
-  // List of routes where we don't want to show Navigation and Footer
-  const hideNavAndFooter = ['/login', '/signup', '/forgot-password', '/reset-password', '/verify-email'];
-  const location = useLocation();
-  const shouldHideNavAndFooter = hideNavAndFooter.some(path =>
-    location.pathname.startsWith(path)
-  );
+const ProtectedPage = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute>
+    <AppLayout>{children}</AppLayout>
+  </ProtectedRoute>
+);
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      {!shouldHideNavAndFooter && <Navigation />}
-      <main className="flex-1">
-        <Routes>
-          {/* Public routes */}
-          <Route path="/" element={<Index />} />
+const AppContent = () => (
+  <Routes>
+    <Route path="/" element={<RootRedirect />} />
+    <Route path="/login" element={<RedirectIfAuthenticated><Login /></RedirectIfAuthenticated>} />
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+    <Route path="/invoice-download/:token" element={<PublicInvoiceDownload />} />
 
-          {/* Auth routes - redirect to dashboard if already logged in */}
-          {/* Auth routes - redirect to dashboard if already logged in */}
-          <Route path="/login" element={
-            <RedirectIfAuthenticated>
-              <Login />
-            </RedirectIfAuthenticated>
-          } />
+    <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
+    <Route path="/invoices" element={<ProtectedPage><Invoices /></ProtectedPage>} />
+    <Route path="/invoices/new" element={<ProtectedPage><CreateInvoice /></ProtectedPage>} />
+    <Route path="/invoices/:id" element={<ProtectedPage><InvoiceDetails /></ProtectedPage>} />
+    <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
+    <Route path="/payments" element={<ProtectedPage><Payments /></ProtectedPage>} />
+    <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
 
-          <Route path="/signup" element={
-            <RedirectIfAuthenticated>
-              <Signup />
-            </RedirectIfAuthenticated>
-          } />
+    <Route path="/terms" element={<TermsOfService />} />
+    <Route path="/privacy" element={<PrivacyPolicy />} />
+    <Route path="*" element={<NotFound />} />
+  </Routes>
+);
 
-          {/* Auth pages - no need to be protected */}
-          <Route path="/forgot-password" element={
-            <RedirectIfAuthenticated>
-              <ForgotPassword />
-            </RedirectIfAuthenticated>
-          } />
-
-          <Route path="/reset-password" element={
-            <RedirectIfAuthenticated>
-              <ResetPassword />
-            </RedirectIfAuthenticated>
-          } />
-
-          <Route path="/verify-email" element={
-            <RedirectIfAuthenticated>
-              <VerifyEmail />
-            </RedirectIfAuthenticated>
-          } />
-
-          {/* Protected routes */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
-
-          {/* Protected routes */}
-          <Route path="/invoices" element={
-            <ProtectedRoute>
-              <Invoices />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/invoices/new" element={
-            <ProtectedRoute>
-              <CreateInvoice />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/invoices/:id" element={
-            <ProtectedRoute>
-              <InvoiceDetails />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <Profile />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/payments" element={
-            <ProtectedRoute>
-              <Payments />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/transactions" element={
-            <ProtectedRoute>
-              <Transactions />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/quotations" element={
-            <ProtectedRoute>
-              <Quotations />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/quotations/new" element={
-            <ProtectedRoute>
-              <CreateQuotation />
-            </ProtectedRoute>
-          } />
-
-          <Route path="/quotations/:id" element={
-            <ProtectedRoute>
-              <QuotationDetails />
-            </ProtectedRoute>
-          } />
-
-          {/* Legal pages */}
-          <Route path="/terms" element={<TermsOfService />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          {/* <Route path="/developer" element={<DeveloperInfo />} /> */}
-
-          {/* Catch all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </main>
-      {!shouldHideNavAndFooter && <Footer />}
-    </div>
-  );
-};
-
-const App = () => {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="system">
-        <AuthProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}>
-              <ScrollToTop />
-              <AppContent />
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
-}
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+          <ScrollToTop />
+          <AppContent />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
 
 export default App;

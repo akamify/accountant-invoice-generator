@@ -1,13 +1,12 @@
 
 import { useEffect, useState, useRef, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Sphere } from '@react-three/drei';
-import { useTheme } from './ThemeProvider';
+import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 
 // Simple fallback component
 const ErrorFallback = () => (
-  <div className="fixed top-0 left-0 w-full h-full -z-10 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800" />
+  <div className="fixed top-0 left-0 w-full h-full -z-10 bg-gradient-to-br from-blue-50 to-indigo-50" />
 );
 
 // Check for WebGL support
@@ -66,15 +65,13 @@ const AnimatedSphere = ({
 
 // Main scene component
 const Scene = () => {
-  const { theme } = useTheme();
   const { gl } = useThree();
   const [error, setError] = useState(false);
   
-  // Memoize colors to prevent unnecessary re-renders
   const colors = {
-    primary: theme === 'dark' ? '#4f46e5' : '#6366f1',
-    secondary: theme === 'dark' ? '#8b5cf6' : '#a78bfa',
-    accent: theme === 'dark' ? '#2563eb' : '#3b82f6'
+    primary: '#6366f1',
+    secondary: '#a78bfa',
+    accent: '#3b82f6'
   };
 
   useEffect(() => {
@@ -171,4 +168,3 @@ export default function ThreeDBackground() {
     </div>
   );
 }
-

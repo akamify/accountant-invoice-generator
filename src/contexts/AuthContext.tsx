@@ -1,680 +1,212 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { toast } from 'sonner';
-import {
-  getAuth,
-  createUserWithEmailAndPassword,
-  sendEmailVerification,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  signOut as firebaseSignOut,
-  updateProfile,
-  sendEmailVerification as firebaseSendEmailVerification,
-  applyActionCode,
-  confirmPasswordReset as firebaseConfirmPasswordReset,
-  verifyPasswordResetCode as firebaseVerifyPasswordResetCode,
-  User as FirebaseUser,
-  UserCredential,
-  ConfirmationResult,
-  sendEmailVerification as sendEmailVerificationFirebase,
-  fetchSignInMethodsForEmail,
-  getRedirectResult
-} from 'firebase/auth';
-import { doc, getDoc, updateDoc, serverTimestamp, getFirestore } from 'firebase/firestore';
-import { auth, database } from '@/lib/firebase';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-// Initialize Firestore
-export const db = getFirestore();
-import { ref, set, get, update } from 'firebase/database';
-
-
-
-declare global {
-  interface Window {
-    recaptchaVerifier: any;
-    recaptchaWidgetId: any;
-    firebase: any;
-  }
-}
-
-// Types
-type User = {
+export type AdminUser = {
+  id: string;
   uid: string;
-  email: string | null;
+  email: string;
+  displayName: string;
   emailVerified: boolean;
-  displayName: string | null;
-  photoURL: string | null;
-  role?: string;
+  loginOtpEnabled: boolean;
   company?: string;
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  address?: string;
+  phone?: string;
   companyPanNumber?: string;
   companyGstNumber?: string;
-  phone?: string;
-  address?: string;
-  createdAt?: number | any; // Allow Firestore Timestamp
-  updatedAt?: number | any; // Allow Firestore Timestamp
 };
 
-interface AuthContextType {
-  user: User | null;
-  currentUser: User | null;
+export type AppSettings = {
+  _id?: string;
+  companyName: string;
+  companyEmail: string;
+  companyPhone?: string;
+  companyAddress?: string;
+  logoUrl?: string;
+  currency: string;
+  invoicePrefix: string;
+  loginOtpEnabled: boolean;
+};
+
+type LoginResult = {
+  requiresOtp?: boolean;
+};
+
+type AuthContextType = {
+  user: AdminUser | null;
+  currentUser: AdminUser | null;
+  settings: AppSettings | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isEmailVerified: boolean;
-  confirmationResult: any;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (displayName: string, email: string, password: string) => Promise<{ user: User }>;
-  loginWithGoogle: () => Promise<void>;
+  login: (password: string) => Promise<LoginResult>;
+  verifyLoginOtp: (otp: string) => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
-  verifyEmail: () => Promise<void>;
-  verifyPasswordResetCode: (code: string) => Promise<string>;
-  confirmPasswordReset: (code: string, newPassword: string) => Promise<void>;
-  updateUser: (data: Partial<Omit<User, 'uid' | 'email' | 'createdAt'>>) => Promise<void>;
+  resetPassword: () => Promise<void>;
+  confirmPasswordReset: (token: string, newPassword: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateUser: (data: Partial<AppSettings>) => Promise<void>;
   reloadUser: () => Promise<void>;
-  setConfirmationResult: (result: any) => void;
-}
+};
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Convert Firebase User to our User type
-const mapFirebaseUser = (firebaseUser: FirebaseUser | null): User | null => {
-  if (!firebaseUser) return null;
-
-  return {
-    uid: firebaseUser.uid,
-    email: firebaseUser.email,
-    displayName: firebaseUser.displayName,
-    photoURL: firebaseUser.photoURL,
-    emailVerified: firebaseUser.emailVerified || false,
-  };
-};
-
-interface AuthProviderProps {
-  children: React.ReactNode;
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Request failed");
+  }
+  return data as T;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isEmailVerified, setIsEmailVerified] = useState<boolean>(false);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-  const googleProvider = new GoogleAuthProvider();
+function mapAdmin(admin: any, settings?: AppSettings | null): AdminUser {
+  return {
+    id: admin.id,
+    uid: admin.id,
+    email: admin.email,
+    displayName: settings?.companyName || "Admin",
+    emailVerified: true,
+    loginOtpEnabled: Boolean(admin.loginOtpEnabled),
+    company: settings?.companyName || "",
+    companyName: settings?.companyName || "",
+    companyEmail: settings?.companyEmail || admin.email,
+    companyPhone: settings?.companyPhone || "",
+    companyAddress: settings?.companyAddress || "",
+    address: settings?.companyAddress || "",
+    phone: settings?.companyPhone || "",
+    companyPanNumber: "",
+    companyGstNumber: "",
+  };
+}
 
-  // Fetch user data from database
-  const fetchUserData = useCallback(async (userId: string): Promise<Partial<User>> => {
-    try {
-      const userRef = ref(database, `users/${userId}`);
-      const snapshot = await get(userRef);
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<AdminUser | null>(null);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-      if (snapshot.exists()) {
-        return snapshot.val() as Partial<User>;
-      }
-
-      return {};
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      return {};
-    }
+  const applySession = useCallback((admin: any, nextSettings: AppSettings | null) => {
+    setSettings(nextSettings);
+    setUser(admin ? mapAdmin(admin, nextSettings) : null);
   }, []);
 
-  // Load additional user data from Realtime Database
-  const loadUserData = useCallback(async (firebaseUser: FirebaseUser) => {
-    try {
-      const userRef = ref(database, `users/${firebaseUser.uid}`);
+  const reloadUser = useCallback(async () => {
+    const data = await apiRequest<{ admin: any; settings: AppSettings }>("/api/auth/me");
+    applySession(data.admin, data.settings);
+  }, [applySession]);
 
-      // First, try to get the user data
-      let snapshot;
-      try {
-        snapshot = await get(userRef);
-      } catch (error: any) {
-        // If permission denied, it might be because the user document doesn't exist yet
-        if (error.code === 'PERMISSION_DENIED') {
-          console.log('User document does not exist, creating...');
-          snapshot = { exists: () => false };
-        } else {
-          throw error;
-        }
-      }
-
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        const user = {
-          ...mapFirebaseUser(firebaseUser)!,
-          ...userData
-        };
-        setUser(user);
-        setCurrentUser(user);
-        return user;
-      } else {
-        // Create user document if it doesn't exist
-        const newUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName || '',
-          photoURL: firebaseUser.photoURL || null,
-          role: 'user',
-          emailVerified: firebaseUser.emailVerified || false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-
-        try {
-          await set(userRef, newUser);
-          setUser(newUser);
-          setCurrentUser(newUser);
-          return newUser;
-        } catch (error) {
-          console.error('Error creating user document:', error);
-          // Even if we can't save to the database, we can still set the user state
-          // with the basic auth info
-          const basicUser = mapFirebaseUser(firebaseUser);
-          if (basicUser) {
-            setUser(basicUser);
-            setCurrentUser(basicUser);
-            return basicUser;
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error in loadUserData:', error);
-      // Don't throw the error, just log it and continue with basic auth info
-      const basicUser = mapFirebaseUser(firebaseUser);
-      if (basicUser) {
-        setUser(basicUser);
-        setCurrentUser(basicUser);
-        return basicUser;
-      }
-    }
-    return null;
-  }, []);
-
-  // Handle auth state changes
   useEffect(() => {
-    let isMounted = true;
-
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (!isMounted) return;
-
-      if (firebaseUser) {
-        // Check if email is verified
-        const isVerified = firebaseUser.emailVerified;
-        setIsEmailVerified(isVerified);
-
-        // Load additional user data
-        await loadUserData(firebaseUser);
-
-        setIsAuthenticated(true);
-      } else {
-        setUser(null);
-        setCurrentUser(null);
-        setIsAuthenticated(false);
-        setIsEmailVerified(false);
-      }
-
-      setIsLoading(false);
-    });
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, [loadUserData]);
-
-  // Login with email and password
-  const login = async (email: string, password: string): Promise<void> => {
-    try {
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-
-      setIsLoading(true);
-
-      // Clear any verification-related URL parameters
-      const url = new URL(window.location.href);
-      const hasVerificationParams = url.searchParams.has('oobCode') ||
-        url.searchParams.has('mode') ||
-        url.searchParams.has('apiKey');
-
-      if (hasVerificationParams) {
-        console.log('Clearing verification parameters from URL');
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-
-      // Get additional user data from database
-      const userData = await loadUserData(userCredential.user);
-
-      // Update state with the latest data
-      const user = {
-        ...mapFirebaseUser(userCredential.user)!,
-        ...userData
-      };
-
-      console.log('Login successful');
-
-      // Set authentication state
-      setUser(user);
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-      setIsEmailVerified(user.emailVerified);
-
-      // Clear any verification state from localStorage
-      localStorage.removeItem('emailForSignIn');
-
-      // Show success message
-      toast.success('Successfully logged in!');
-
-    } catch (error: any) {
-      console.error('Login error:', error);
-      let errorMessage = 'Failed to log in';
-
-      if (error.code) {
-        switch (error.code) {
-          case 'auth/user-not-found':
-          case 'auth/wrong-password':
-            errorMessage = 'Invalid email or password';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many failed attempts. Please try again later.';
-            break;
-          case 'auth/user-disabled':
-            errorMessage = 'This account has been disabled';
-            break;
-          case 'auth/invalid-credential':
-            errorMessage = 'Invalid login credentials. Please check your email and password.';
-            break;
-          default:
-            errorMessage = error.message || 'An error occurred during login';
-        }
-      }
-
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Sign up with email and password
-  const signup = async (displayName: string, email: string, password: string): Promise<{ user: User }> => {
-    try {
-      setIsLoading(true);
-
-      // Input validation
-      if (!email || !password) {
-        throw new Error('Email and password are required');
-      }
-
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
-      }
-
-      // Create user with email and password
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const { user: firebaseUser } = userCredential;
-
-      // Update user profile with display name
-      await updateProfile(firebaseUser, { displayName });
-
-      // Create user data for Firestore
-      const userData: User = {
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: displayName,
-        photoURL: firebaseUser.photoURL || null,
-        emailVerified: false, // Will be set to true after email verification
-        role: 'user',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      // Save user data to Realtime Database
-      const userRef = ref(database, `users/${firebaseUser.uid}`);
-      await set(userRef, userData);
-
-      // Update local state
-      setUser(userData);
-      setCurrentUser(userData);
-      setIsAuthenticated(true);
-
-      // Return the user data
-      return {
-        user: userData
-      };
-
-    } catch (error: any) {
-      console.error('Signup error:', error);
-      let errorMessage = 'Failed to create account';
-
-      if (error.code) {
-        switch (error.code) {
-          case 'auth/email-already-in-use':
-            errorMessage = 'Email is already in use';
-            break;
-          case 'auth/invalid-email':
-            errorMessage = 'Invalid email address';
-            break;
-          case 'auth/weak-password':
-            errorMessage = 'Password is too weak';
-            break;
-          case 'auth/too-many-requests':
-            errorMessage = 'Too many attempts. Please try again later.';
-            break;
-          default:
-            errorMessage = error.message || 'An error occurred during signup';
-        }
-      }
-
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Login with Google
-  const loginWithGoogle = async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-
-      // Clear any verification-related URL parameters
-      const url = new URL(window.location.href);
-      const hasVerificationParams = url.searchParams.has('oobCode') ||
-        url.searchParams.has('mode') ||
-        url.searchParams.has('apiKey');
-
-      if (hasVerificationParams) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
-
-      // Check if we're in an iframe or have restrictive COOP/COEP headers
-      const isInIframe = window.self !== window.top;
-      const hasRestrictiveHeaders =
-        window.self !== window.top ||
-        window.crossOriginIsolated;
-
-      // If in iframe or has restrictive headers, use redirect directly
-      if (isInIframe || hasRestrictiveHeaders) {
-        sessionStorage.setItem('redirectAfterSignIn', window.location.pathname);
-        await signInWithRedirect(auth, new GoogleAuthProvider());
-        return;
-      }
-
-      let result;
-      let firebaseUser;
-
-      try {
-        result = await signInWithPopup(auth, new GoogleAuthProvider());
-        firebaseUser = result.user;
-      } catch (popupError: any) {
-        // If popup is blocked or closed, fall back to redirect
-        if (popupError.code === 'auth/popup-blocked' ||
-          popupError.code === 'auth/popup-closed-by-user' ||
-          popupError.code === 'auth/cancelled-popup-request' ||
-          popupError.message?.includes('Cross-Origin-Opener-Policy')) {
-          toast.info('Please allow popups or continue with redirect');
-
-          // Store the current URL to redirect back after sign-in
-          sessionStorage.setItem('redirectAfterSignIn', window.location.pathname);
-
-          // Fall back to redirect
-          await signInWithRedirect(auth, new GoogleAuthProvider());
-          return;
-        }
-        throw popupError; // Re-throw if it's a different error
-      }
-
-
-      // If user closed the popup or cancelled the sign-in
-      if (!firebaseUser) {
-        console.log('Google sign in was cancelled');
-        toast.info('Google sign in was cancelled');
-        return;
-      }
-
-      // Load or create user data
-      const userData = await loadUserData(firebaseUser);
-      const isVerified = firebaseUser.emailVerified;
-
-      // Update state with the latest data
-      const updatedUser = {
-        ...mapFirebaseUser(firebaseUser)!,
-        ...userData
-      };
-
-      setUser(updatedUser);
-      setCurrentUser(updatedUser);
-      setIsAuthenticated(true);
-      setIsEmailVerified(isVerified);
-
-      toast.success('Successfully logged in with Google');
-
-    } catch (error: any) {
-      console.error('Google sign in error:', error);
-
-      // Handle specific error when user closes the popup
-      if (error.code === 'auth/popup-closed-by-user' ||
-        error.code === 'auth/cancelled-popup-request' ||
-        error.message?.includes('popup closed')) {
-        toast.info('Google sign in was cancelled');
-      }
-      // Handle account exists with different credential
-      else if (error.code === 'auth/account-exists-with-different-credential') {
-        toast.error('An account already exists with the same email but different sign-in credentials');
-      }
-      // Handle operation not allowed
-      else if (error.code === 'auth/operation-not-allowed') {
-        toast.error('Google Sign-In is not enabled. Please contact support.');
-        console.error('Google Sign-In is not enabled in Firebase Console. Please enable it in Authentication > Sign-in method');
-      }
-      // Handle unauthorized domain
-      else if (error.code === 'auth/unauthorized-domain') {
-        toast.error('This domain is not authorized for Google Sign-In. Please contact support.');
-        console.error('Domain not authorized. Add your domain in Firebase Console > Authentication > Settings > Authorized domains');
-      }
-      // Handle other errors
-      else {
-        const errorMessage = error.message || 'Failed to sign in with Google. Please try again.';
-        toast.error(errorMessage);
-        throw new Error(errorMessage);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Verify email
-  const verifyEmail = useCallback(async (): Promise<void> => {
-    try {
-      if (!auth.currentUser) {
-        throw new Error('No user is currently signed in');
-      }
-      await sendEmailVerification(auth.currentUser);
-      toast.success('Verification email sent. Please check your inbox.');
-    } catch (error: any) {
-      console.error('Verify email error:', error);
-      toast.error(error.message || 'Failed to send verification email');
-      throw error;
-    }
-  }, []);
-
-  // Verify password reset code
-  const verifyPasswordResetCode = async (code: string): Promise<string> => {
-    try {
-      return await firebaseVerifyPasswordResetCode(auth, code);
-    } catch (error) {
-      console.error('Verify password reset code error:', error);
-      throw error;
-    }
-  };
-
-  // Confirm password reset
-  const confirmPasswordReset = async (code: string, newPassword: string): Promise<void> => {
-    try {
-      await firebaseConfirmPasswordReset(auth, code, newPassword);
-      toast.success('Password has been reset successfully. You can now log in with your new password.');
-    } catch (error) {
-      console.error('Confirm password reset error:', error);
-      let errorMessage = 'Failed to reset password';
-
-      if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password is too weak. Please choose a stronger password.';
-      } else if (error.code === 'auth/expired-action-code') {
-        errorMessage = 'The password reset link has expired. Please request a new one.';
-      } else if (error.code === 'auth/invalid-action-code') {
-        errorMessage = 'Invalid password reset link. Please request a new one.';
-      }
-
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-  };
-
-  // Reload user data
-  const reloadUser = async (): Promise<void> => {
-    if (!auth.currentUser) return;
-
-    try {
-      await auth.currentUser.reload();
-      const updatedUser = auth.currentUser;
-      const userData = await fetchUserData(updatedUser.uid);
-
-      const user = {
-        ...mapFirebaseUser(updatedUser)!,
-        ...userData
-      };
-
-      setUser(user);
-      setCurrentUser(user);
-      setIsAuthenticated(true);
-      setIsEmailVerified(updatedUser.emailVerified);
-    } catch (error) {
-      console.error('Error reloading user:', error);
-      throw error;
-    }
-  };
-
-  // Update user profile
-  const updateUser = async (data: Partial<Omit<User, 'uid' | 'email' | 'createdAt'>>) => {
-    if (!auth.currentUser) return;
-
-    try {
-      // Update Firebase Auth profile
-      if (data.displayName || data.photoURL) {
-        await updateProfile(auth.currentUser, {
-          displayName: data.displayName || undefined,
-          photoURL: data.photoURL || undefined,
-        });
-      }
-
-      // Update user data in database
-      const userRef = ref(database, `users/${auth.currentUser.uid}`);
-      await update(userRef, {
-        ...data,
-        updatedAt: serverTimestamp(),
+    let mounted = true;
+    apiRequest<{ admin: any; settings: AppSettings }>("/api/auth/me")
+      .then((data) => {
+        if (mounted) applySession(data.admin, data.settings);
+      })
+      .catch(() => {
+        if (mounted) applySession(null, null);
+      })
+      .finally(() => {
+        if (mounted) setIsLoading(false);
       });
 
-      // Update local state
-      setUser(prev => ({
-        ...prev!,
-        ...data,
-      }));
-      setCurrentUser(prev => ({
-        ...prev!,
-        ...data,
-      }));
+    return () => {
+      mounted = false;
+    };
+  }, [applySession]);
 
-      toast.success('Profile updated successfully');
-    } catch (error) {
-      console.error('Error updating user:', error);
-      toast.error('Failed to update profile');
-      throw error;
+  const login = async (password: string): Promise<LoginResult> => {
+    const data = await apiRequest<{ success: boolean; requiresOtp?: boolean; admin?: any }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    if (data.requiresOtp) {
+      toast.success("OTP sent to admin email");
+      return { requiresOtp: true };
     }
+    await reloadUser();
+    toast.success("Successfully logged in");
+    return {};
   };
 
-  // Logout
-  const logout = async (): Promise<void> => {
-    try {
-      setIsLoading(true);
-      await firebaseSignOut(auth);
-
-      // Clear all auth state
-      setUser(null);
-      setCurrentUser(null);
-      setIsAuthenticated(false);
-      setIsEmailVerified(false);
-
-      // Clear any stored tokens or session data
-      localStorage.removeItem('authToken');
-      sessionStorage.clear();
-
-      // Clear any pending redirects or auth state
-      if (window.location.pathname.startsWith('/verify-email')) {
-        // If we're on the verify email page, redirect to login
-        window.location.href = '/login';
-        return;
-      }
-
-      toast.success('Successfully logged out');
-    } catch (error: any) {
-      console.error('Logout error:', error);
-      toast.error(error.message || 'Failed to log out');
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+  const verifyLoginOtp = async (otp: string) => {
+    await apiRequest("/api/auth/verify-login-otp", {
+      method: "POST",
+      body: JSON.stringify({ otp }),
+    });
+    await reloadUser();
+    toast.success("OTP verified");
   };
 
-  // Reset password function
-  const resetPassword = async (email: string) => {
-    try {
-      await sendPasswordResetEmail(auth, email);
-      toast.success('Password reset email sent. Please check your inbox.');
-    } catch (error: any) {
-      console.error('Error sending password reset email:', error);
-      toast.error(error.message || 'Failed to send password reset email');
-      throw error;
-    }
+  const logout = async () => {
+    await apiRequest("/api/auth/logout", { method: "POST" });
+    applySession(null, null);
+    toast.success("Successfully logged out");
   };
 
-  // Context value
-  const contextValue = {
+  const resetPassword = async () => {
+    await apiRequest("/api/auth/request-password-reset", { method: "POST" });
+    toast.success("Password reset link sent to admin email");
+  };
+
+  const confirmPasswordReset = async (token: string, newPassword: string) => {
+    await apiRequest("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, newPassword }),
+    });
+    applySession(null, null);
+    toast.success("Password reset successfully");
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    await apiRequest("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    toast.success("Password changed successfully");
+  };
+
+  const updateUser = async (data: Partial<AppSettings>) => {
+    await apiRequest("/api/settings", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+    await reloadUser();
+    toast.success("Settings updated successfully");
+  };
+
+  const value = useMemo<AuthContextType>(() => ({
     user,
-    currentUser,
-    isAuthenticated,
+    currentUser: user,
+    settings,
+    isAuthenticated: Boolean(user),
     isLoading,
-    isEmailVerified,
-    confirmationResult,
+    isEmailVerified: true,
     login,
-    signup,
-    loginWithGoogle,
+    verifyLoginOtp,
     logout,
     resetPassword,
-    verifyEmail,
-    verifyPasswordResetCode,
     confirmPasswordReset,
+    changePassword,
     updateUser,
     reloadUser,
-    setConfirmationResult,
-  };
+  }), [user, settings, isLoading, reloadUser]);
 
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Custom hook to use the auth context
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };

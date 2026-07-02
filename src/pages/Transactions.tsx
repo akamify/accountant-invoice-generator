@@ -1,173 +1,124 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import ThreeDBackground from "@/components/ThreeDBackground";
-import { ArrowLeft, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getUserInvoices } from "@/services/invoiceService";
-import { getTransactionsFromInvoices, filterTransactionsByInvoiceNumber, sortTransactionsByAmount, sortTransactionsByDate } from "@/services/transactionService";
+import { createTransaction, deleteTransaction, getTransactions } from "@/services/transactionService";
 import { Transaction } from "@/types/invoice";
+import { toast } from "sonner";
 
-const Transactions = () => {
-    const navigate = useNavigate();
-    const { user, isAuthenticated, isLoading } = useAuth();
-    const [error, setError] = useState<string | null>(null);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [sortOption, setSortOption] = useState("date-desc");
-    useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
-            navigate("/login");
-        }
-    }, [isAuthenticated, isLoading, navigate]);
+export default function Transactions() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [type, setType] = useState<"income" | "expense">("income");
+  const [title, setTitle] = useState("");
+  const [amount, setAmount] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchTransactions = async () => {
-            if (isAuthenticated && user?.uid) {
-                try {
-                    // Fetch user's invoices
-                    const userInvoices = await getUserInvoices(user.uid);
-
-                    // Convert invoices to transactions
-                    const userTransactions = getTransactionsFromInvoices(userInvoices);
-
-                    setTransactions(userTransactions);
-                    setFilteredTransactions(userTransactions);
-                } catch (error) {
-                    console.error('Error loading transactions:', error);
-                    setError("Failed to load transactions");
-                }
-            }
-        };
-
-        fetchTransactions();
-    }, [isAuthenticated, user]);
-
-    useEffect(() => {
-        let result = [...transactions];
-
-        // Apply search filter
-        if (searchTerm) {
-            result = filterTransactionsByInvoiceNumber(result, searchTerm);
-        }
-
-        // Apply sorting
-        switch (sortOption) {
-            case "amount-asc":
-                result = sortTransactionsByAmount(result, "asc");
-                break;
-            case "amount-desc":
-                result = sortTransactionsByAmount(result, "desc");
-                break;
-            case "date-asc":
-                result = sortTransactionsByDate(result, "asc");
-                break;
-            case "date-desc":
-                result = sortTransactionsByDate(result, "desc");
-                break;
-            default:
-                break;
-        }
-
-        setFilteredTransactions(result);
-    }, [transactions, searchTerm, sortOption]);
-
-    if (isLoading || !isAuthenticated) {
-        return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  const loadTransactions = async () => {
+    setIsLoading(true);
+    try {
+      setTransactions(await getTransactions());
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    return (
-        <div className="min-h-screen bg-background">
-            <ThreeDBackground />
-            <main className="flex-1 container py-8 px-4 sm:px-6 lg:px-8">
-                <div className="flex items-center gap-2 mb-8">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => navigate("/dashboard")}
-                        className="rounded-full"
-                    >
-                        <ArrowLeft size={18} />
+  useEffect(() => {
+    loadTransactions();
+  }, []);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createTransaction({
+      type,
+      title,
+      amount: Number(amount),
+      transactionDate: new Date().toISOString(),
+      category: "Manual",
+      paymentMethod: "manual",
+    });
+    setTitle("");
+    setAmount("");
+    toast.success("Transaction created");
+    await loadTransactions();
+  };
+
+  const handleDelete = async (transaction: Transaction) => {
+    try {
+      await deleteTransaction(transaction.id);
+      toast.success("Transaction deleted");
+      await loadTransactions();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to delete transaction");
+    }
+  };
+
+  const filtered = transactions.filter((transaction) =>
+    (transaction.title || transaction.invoiceNumber || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold">Transactions</h1>
+        <p className="text-muted-foreground">Manual income/expense entries and invoice-linked payments.</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Create Manual Transaction</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-[160px_1fr_160px_auto]">
+            <Select value={type} onValueChange={(value) => setType(value as "income" | "expense")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="income">Income</SelectItem>
+                <SelectItem value="expense">Expense</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" required />
+            <Input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" min="0" step="0.01" placeholder="Amount" required />
+            <Button type="submit">Add</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction History</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input placeholder="Search transactions..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          {isLoading ? (
+            <div className="py-12 text-center text-muted-foreground">Loading transactions...</div>
+          ) : filtered.length > 0 ? (
+            <div className="space-y-4">
+              {filtered.map((transaction) => (
+                <div key={transaction.id} className="flex items-center justify-between border-b pb-4">
+                  <div>
+                    <p className="font-medium">{transaction.title || `Invoice #${transaction.invoiceNumber}`}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {transaction.source || "manual"} • {new Date(transaction.transactionDate || transaction.date || transaction.createdAt || Date.now()).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <p className={`font-medium ${transaction.type === "income" || transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}>
+                      {transaction.type === "income" || transaction.type === "credit" ? "+" : "-"}₹{Number(transaction.amount || 0).toFixed(2)}
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => handleDelete(transaction)} disabled={transaction.source === "invoice"}>
+                      Delete
                     </Button>
-                    <div>
-                        <h1 className="text-3xl font-bold">Transactions</h1>
-                        <p className="text-muted-foreground">View all financial transactions</p>
-                    </div>
+                  </div>
                 </div>
-
-                {/* Search and Filter Controls */}
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                        <Input
-                            placeholder="Search by invoice number..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10"
-                        />
-                    </div>
-                    <div className="w-full md:w-48">
-                        <Select value={sortOption} onValueChange={setSortOption}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Sort by" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="date-desc">Newest First</SelectItem>
-                                <SelectItem value="date-asc">Oldest First</SelectItem>
-                                <SelectItem value="amount-desc">Amount: High to Low</SelectItem>
-                                <SelectItem value="amount-asc">Amount: Low to High</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Transaction History</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {error ? (
-                            <div className="flex flex-col items-center justify-center py-12">
-                                <div className="bg-destructive/10 text-destructive p-4 rounded-lg mb-4">
-                                    <p>{error}</p>
-                                </div>
-                                <Button onClick={() => window.location.reload()}>
-                                    Retry
-                                </Button>
-                            </div>
-                        ) : filteredTransactions.length > 0 ? (
-                            <div className="space-y-4">
-                                {filteredTransactions.map((transaction) => (
-                                    <div key={transaction.id} className="flex items-center justify-between border-b pb-4">
-                                        <div>
-                                            <p className="font-medium">Invoice #{transaction.invoiceNumber}</p>
-                                            <p className="text-sm text-muted-foreground">{transaction.clientName}</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className={`font-medium ${transaction.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
-                                                {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount.toFixed(2)}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {new Date(transaction.date).toLocaleDateString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="flex flex-col items-center justify-center py-12">
-                                <p className="text-muted-foreground">No transactions found</p>
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-            </main>
-        </div>
-    );
-};
-
-export default Transactions;
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center text-muted-foreground">No transactions found</div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
