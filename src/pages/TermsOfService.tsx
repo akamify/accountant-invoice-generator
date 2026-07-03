@@ -16,7 +16,7 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p className="text-muted-foreground mb-4">
-              Welcome to Accountant Invoice. These Terms of Service ("Terms") govern your access to and use of our website and services. 
+              Welcome to Ramesh Tyres. These Terms of Service ("Terms") govern your access to and use of our website and services. 
               By accessing or using our services, you agree to be bound by these Terms and our Privacy Policy.
             </p>
           </section>
@@ -53,16 +53,16 @@ export default function TermsOfService() {
           <section>
             <h2 className="text-xl font-semibold mb-3">5. Intellectual Property</h2>
             <p className="text-muted-foreground mb-4">
-              The service and its original content, features, and functionality are and will remain the exclusive property of Accountant Invoice 
+              The service and its original content, features, and functionality are and will remain the exclusive property of Ramesh Tyres 
               and its licensors. Our trademarks and trade dress may not be used in connection with any product or service without the prior written 
-              consent of Accountant Invoice.
+              consent of Ramesh Tyres.
             </p>
           </section>
 
           <section>
             <h2 className="text-xl font-semibold mb-3">6. Limitation of Liability</h2>
             <p className="text-muted-foreground mb-4">
-              In no event shall Accountant Invoice, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any 
+              In no event shall Ramesh Tyres, nor its directors, employees, partners, agents, suppliers, or affiliates, be liable for any 
               indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, 
               or other intangible losses, resulting from your access to or use of or inability to access or use the services.
             </p>

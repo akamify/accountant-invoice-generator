@@ -1,6 +1,6 @@
 {
-  "name": "Accountant Invoice",
-  "short_name": "Accountant Invoice",
+  "name": "Ramesh Tyres",
+  "short_name": "Ramesh Tyres",
   "description": "Secure single-admin invoice management for invoices, payments, transactions, and analytics.",
   "start_url": "/",
   "display": "standalone",

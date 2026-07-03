@@ -115,7 +115,7 @@ export default function Profile() {
         <CardHeader><CardTitle>Company Profile</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
-            <Field label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Accountant Invoice Pvt Ltd" />
+            <Field label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Ramesh Tyres" />
             <Field label="Company Email" name="companyEmail" type="email" value={formData.companyEmail} onChange={handleChange} placeholder="billing@company.com" />
             <Field label="Company Phone" name="companyPhone" value={formData.companyPhone} onChange={handleChange} placeholder="+91 98765 43210" />
             <Field label="Company PAN" name="companyPanNumber" value={formData.companyPanNumber} onChange={handleChange} placeholder="AAAPA1234A" />

@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p className="text-muted-foreground mb-4">
-              At Accountant Invoice, we take your privacy seriously. This Privacy Policy explains how we collect, use, 
+              At Ramesh Tyres, we take your privacy seriously. This Privacy Policy explains how we collect, use, 
               disclose, and safeguard your information when you use our services. Please read this Privacy Policy carefully. 
               By accessing or using our services, you agree to the collection and use of information in accordance with this policy.
             </p>

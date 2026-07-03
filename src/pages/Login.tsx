@@ -13,11 +13,11 @@ export default function Login() {
             <div className="flex items-center gap-3">
               <img
                 src="/logo.png"
-                alt="Accountant Invoice"
+                alt="Ramesh Tyres"
                 className="h-11 w-11 rounded-[4px] bg-white object-contain"
               />
               <div className="text-base font-semibold tracking-tight">
-                Accountant Invoice
+                Ramesh Tyres
               </div>
             </div>
 
@@ -28,7 +28,7 @@ export default function Login() {
 
           <div className="relative z-10 my-auto max-w-xl">
             <div className="mb-5 inline-flex rounded-[4px] border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300">
-              Invoice · Transactions · Analytics
+              Invoices - Transactions - Analytics
             </div>
 
             <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-[-0.03em]">
@@ -68,10 +68,10 @@ export default function Login() {
               <div className="flex items-center gap-3 text-lg font-semibold tracking-tight">
                 <img
                   src="/logo.png"
-                  alt="Accountant Invoice"
+                  alt="Ramesh Tyres"
                   className="h-11 w-11 rounded-[4px] object-contain"
                 />
-                Accountant Invoice
+                Ramesh Tyres
               </div>
             </div>
 

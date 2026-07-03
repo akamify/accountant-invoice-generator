@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { InvoiceData } from "@/types/invoice";
-import { getUserInvoices } from "@/services/invoiceService";
+import { deleteInvoice, getUserInvoices } from "@/services/invoiceService";
 import { Button } from "@/components/ui/button";
-import InvoiceCard from "@/components/InvoiceCard";
 import ThreeDBackground from "@/components/ThreeDBackground";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { Eye, Plus, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatCurrencyAmount } from "@/utils/currency";
+import { toast } from "sonner";
 
 const Invoices = () => {
   const navigate = useNavigate();
@@ -82,10 +83,30 @@ const Invoices = () => {
     setFilteredInvoices(result);
   }, [invoices, searchTerm, statusFilter, sortOption]);
 
-  const handleDeleteInvoice = (invoiceId: string) => {
-    // Remove the deleted invoice from the state
-    setInvoices(prevInvoices => prevInvoices.filter(invoice => invoice.id !== invoiceId));
-    setFilteredInvoices(prevInvoices => prevInvoices.filter(invoice => invoice.id !== invoiceId));
+  const formatDate = (value?: string) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
+  };
+
+  const getStatusClass = (status: InvoiceData["status"]) => {
+    if (status === "paid") return "bg-green-50 text-green-700 border-green-200";
+    if (status === "overdue") return "bg-red-50 text-red-700 border-red-200";
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  };
+
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!window.confirm("Move this invoice to Recently Deleted?")) return;
+
+    try {
+      await deleteInvoice(invoiceId);
+      setInvoices((prevInvoices) => prevInvoices.filter((invoice) => invoice.id !== invoiceId));
+      setFilteredInvoices((prevInvoices) => prevInvoices.filter((invoice) => invoice.id !== invoiceId));
+      toast.success("Invoice moved to Recently Deleted");
+    } catch (error) {
+      console.error("Error deleting invoice:", error);
+      toast.error("Failed to delete invoice");
+    }
   };
 
   if (isLoading || !isAuthenticated) {
@@ -167,15 +188,74 @@ const Invoices = () => {
             <p>Loading invoices...</p>
           </div>
         ) : filteredInvoices.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredInvoices.map((invoice) => (
-              <InvoiceCard
-                key={invoice.id}
-                invoice={invoice}
-                currency={settings?.currency}
-                onDelete={handleDeleteInvoice}
-              />
-            ))}
+          <div className="overflow-hidden rounded-[4px] border bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[860px] text-sm">
+                <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Invoice</th>
+                    <th className="px-4 py-3 font-semibold">Client</th>
+                    <th className="px-4 py-3 font-semibold">Issue Date</th>
+                    <th className="px-4 py-3 font-semibold">Due Date</th>
+                    <th className="px-4 py-3 text-right font-semibold">Amount</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {filteredInvoices.map((invoice) => {
+                    const displayCurrency = invoice.currency || settings?.currency || "INR";
+
+                    return (
+                      <tr key={invoice.id} className="hover:bg-slate-50">
+                        <td className="px-4 py-3 font-semibold text-slate-950">
+                          #{invoice.invoiceNumber}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          <div className="font-medium">{invoice.clientName || "N/A"}</div>
+                          {invoice.clientEmail && (
+                            <div className="text-xs text-muted-foreground">{invoice.clientEmail}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{formatDate(invoice.createdAt || invoice.issueDate)}</td>
+                        <td className="px-4 py-3 text-slate-700">{formatDate(invoice.dueDate)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-slate-950">
+                          {formatCurrencyAmount(invoice.total, displayCurrency)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex rounded-[4px] border px-2 py-1 text-xs font-semibold capitalize ${getStatusClass(invoice.status)}`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/invoices/${invoice.id}`)}
+                              className="h-8 gap-1"
+                            >
+                              <Eye className="h-4 w-4" />
+                              View
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteInvoice(invoice.id)}
+                              className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center">

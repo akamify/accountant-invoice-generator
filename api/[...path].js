@@ -8,6 +8,7 @@ const SESSION_COOKIE = "accountant_session";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
 const OTP_MAX_AGE_MS = 10 * 60 * 1000;
 const RESET_MAX_AGE_MS = 30 * 60 * 1000;
+const APP_NAME = "Ramesh Tyres";
 
 let cachedClient = globalThis.__accountantMongoClient;
 let cachedDb = globalThis.__accountantMongoDb;
@@ -48,6 +49,89 @@ function env(name) {
 
 function optionalEnv(name) {
   return process.env[name] || "";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatDateTime(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "N/A" : date.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+}
+
+function emailLayout({ title, preheader, intro, rows = [], button, footer }) {
+  const rowHtml = rows
+    .filter((row) => row?.label)
+    .map((row) => `
+      <tr>
+        <td style="padding:10px 0;color:#64748b;font-size:13px;border-bottom:1px solid #e5e7eb;">${escapeHtml(row.label)}</td>
+        <td style="padding:10px 0;color:#111827;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid #e5e7eb;">${escapeHtml(row.value || "N/A")}</td>
+      </tr>
+    `)
+    .join("");
+
+  const buttonHtml = button?.href
+    ? `<div style="margin:28px 0 6px;">
+        <a href="${escapeHtml(button.href)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 20px;border-radius:4px;">${escapeHtml(button.label || "Open")}</a>
+      </div>`
+    : "";
+
+  return `
+    <!doctype html>
+    <html>
+      <body style="margin:0;background:#f6f7f9;font-family:Arial,Helvetica,sans-serif;color:#111827;">
+        <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(preheader || title)}</div>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f7f9;padding:28px 12px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:#ffffff;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;">
+                <tr>
+                  <td style="background:#111827;color:#ffffff;padding:22px 26px;">
+                    <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#cbd5e1;">${APP_NAME}</div>
+                    <div style="font-size:24px;font-weight:800;line-height:1.25;margin-top:7px;">${escapeHtml(title)}</div>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:26px;">
+                    <div style="font-size:15px;line-height:1.7;color:#374151;">${intro || ""}</div>
+                    ${rowHtml ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:22px;border-top:1px solid #e5e7eb;">${rowHtml}</table>` : ""}
+                    ${buttonHtml}
+                    <p style="margin:22px 0 0;color:#64748b;font-size:12px;line-height:1.6;">${escapeHtml(footer || "This is an automated email. Please do not share secure links or OTPs with anyone.")}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+    </html>
+  `;
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  const value = Array.isArray(forwarded) ? forwarded[0] : forwarded;
+  return String(value || req.headers["x-real-ip"] || req.socket?.remoteAddress || "Unknown").split(",")[0].trim();
+}
+
+function getBrowserInfo(req) {
+  const ua = String(req.headers["user-agent"] || "Unknown");
+  const browser =
+    ua.includes("Edg/") ? "Microsoft Edge" :
+    ua.includes("Chrome/") ? "Chrome" :
+    ua.includes("Firefox/") ? "Firefox" :
+    ua.includes("Safari/") ? "Safari" :
+    "Unknown browser";
+  const device =
+    /Mobile|Android|iPhone|iPad/i.test(ua) ? "Mobile / Tablet" :
+    ua === "Unknown" ? "Unknown device" :
+    "Desktop";
+  return { userAgent: ua, browser, device };
 }
 
 async function getDb() {
@@ -161,7 +245,7 @@ async function ensureSettings(db, adminEmail) {
 
   const now = new Date();
   const settings = {
-    companyName: "Accountant Invoice",
+    companyName: APP_NAME,
     companyEmail: adminEmail,
     companyPhone: "",
     companyAddress: "",
@@ -230,7 +314,7 @@ async function sendMail({ to, subject, html, text }) {
     body: JSON.stringify({
       sender: {
         email: env("BREVO_FROM_EMAIL"),
-        name: optionalEnv("BREVO_FROM_NAME") || "Accountant Invoice",
+        name: optionalEnv("BREVO_FROM_NAME") || APP_NAME,
       },
       to: [{ email: to }],
       subject,
@@ -245,36 +329,94 @@ async function sendMail({ to, subject, html, text }) {
 }
 
 async function sendOtpEmail(email, otp, purpose) {
+  const title = `${purpose.charAt(0).toUpperCase()}${purpose.slice(1)} OTP`;
   await sendMail({
     to: email,
-    subject: `Accountant Invoice ${purpose} OTP`,
+    subject: `${APP_NAME} ${title}`,
     text: `Your OTP is ${otp}. It expires in 10 minutes.`,
-    html: `<p>Your Accountant Invoice OTP is <strong>${otp}</strong>.</p><p>This code expires in 10 minutes.</p>`,
+    html: emailLayout({
+      title,
+      preheader: `Your ${APP_NAME} OTP is ${otp}`,
+      intro: `<p style="margin:0;">Use this one-time password to complete your ${escapeHtml(purpose)} request.</p>
+        <div style="margin-top:20px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;padding:18px;text-align:center;">
+          <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;">Verification Code</div>
+          <div style="font-size:30px;font-weight:800;letter-spacing:.22em;margin-top:6px;color:#111827;">${escapeHtml(otp)}</div>
+        </div>`,
+      rows: [
+        { label: "Expires in", value: "10 minutes" },
+        { label: "Purpose", value: purpose },
+      ],
+      footer: "If you did not request this code, secure your admin password immediately.",
+    }),
   });
 }
 
 async function sendPasswordResetEmail(email, resetUrl) {
   await sendMail({
     to: email,
-    subject: "Reset your Accountant Invoice password",
+    subject: `Reset your ${APP_NAME} password`,
     text: `Reset your password: ${resetUrl}`,
-    html: `<p>Use the link below to reset your password. It expires in 30 minutes.</p><p><a href="${resetUrl}">Reset password</a></p>`,
+    html: emailLayout({
+      title: "Reset your password",
+      preheader: "Password reset link valid for 30 minutes",
+      intro: `<p style="margin:0;">We received a request to reset your admin password. Use the secure button below to continue.</p>`,
+      rows: [
+        { label: "Expires in", value: "30 minutes" },
+        { label: "Account", value: email },
+      ],
+      button: { href: resetUrl, label: "Reset Password" },
+      footer: "If you did not request this reset, ignore this email and keep your current password.",
+    }),
   });
 }
 
 async function sendInvoiceCreatedEmail(invoice, downloadUrl) {
   const currency = invoice.currency || "INR";
+  const amount = `${currency} ${Number(invoice.total || 0).toFixed(2)}`;
   await sendMail({
     to: invoice.clientEmail,
-    subject: `Invoice ${invoice.invoiceNumber} from Accountant Invoice`,
-    text: `Invoice ${invoice.invoiceNumber} total: ${currency} ${Number(invoice.total || 0).toFixed(2)}. Download: ${downloadUrl}`,
-    html: `
-      <p>Hello ${invoice.clientName || "there"},</p>
-      <p>Your invoice <strong>${invoice.invoiceNumber}</strong> is ready.</p>
-      <p>Total amount: <strong>${currency} ${Number(invoice.total || 0).toFixed(2)}</strong></p>
-      <p>Due date: ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "N/A"}</p>
-      <p><a href="${downloadUrl}">Download invoice</a></p>
-    `,
+    subject: `Invoice ${invoice.invoiceNumber} from ${invoice.companyName || APP_NAME}`,
+    text: `Invoice ${invoice.invoiceNumber} total: ${amount}. Download: ${downloadUrl}`,
+    html: emailLayout({
+      title: `Invoice ${invoice.invoiceNumber}`,
+      preheader: `Invoice total ${amount}`,
+      intro: `<p style="margin:0;">Hello ${escapeHtml(invoice.clientName || "there")},</p>
+        <p style="margin:12px 0 0;">Your invoice from <strong>${escapeHtml(invoice.companyName || APP_NAME)}</strong> is ready. You can preview and download it using the button below.</p>`,
+      rows: [
+        { label: "Invoice Number", value: invoice.invoiceNumber },
+        { label: "Total Amount", value: amount },
+        { label: "Status", value: invoice.status || "pending" },
+        { label: "Due Date", value: invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString("en-IN") : "N/A" },
+      ],
+      button: { href: downloadUrl, label: "View / Download Invoice" },
+      footer: "This public invoice link opens without login. Keep it only with the intended recipient.",
+    }),
+  });
+}
+
+async function sendLoginAlertEmail(admin, req) {
+  const info = getBrowserInfo(req);
+  const ip = getClientIp(req);
+  const time = formatDateTime();
+  await sendMail({
+    to: admin.email,
+    subject: `${APP_NAME} admin login alert`,
+    text: `Admin login detected. Time: ${time}. IP: ${ip}. Browser: ${info.browser}. Device: ${info.device}. User agent: ${info.userAgent}`,
+    html: emailLayout({
+      title: "Admin login detected",
+      preheader: `New admin login from ${info.browser}`,
+      intro: `<p style="margin:0;">A successful admin login was detected for your ${APP_NAME} account.</p>`,
+      rows: [
+        { label: "Login time", value: time },
+        { label: "IP address", value: ip },
+        { label: "Browser", value: info.browser },
+        { label: "Device", value: info.device },
+        { label: "Admin email", value: admin.email },
+        { label: "User agent", value: info.userAgent },
+      ],
+      button: { href: `${optionalEnv("APP_BASE_URL") || ""}/profile`, label: "Review Security Settings" },
+      footer: "If this login was not yours, change the admin password immediately and review OTP settings.",
+    }),
   });
 }
 
@@ -326,10 +468,15 @@ function calculateInvoice(input) {
   });
 
   const subtotal = normalizedItems.reduce((sum, item) => sum + item.amount, 0);
-  const taxRate = Number(input.tax ?? input.igst ?? 0) + Number(input.cgst ?? 0) + Number(input.sgst ?? 0);
-  const tax = input.taxAmount !== undefined ? Number(input.taxAmount) : (subtotal * taxRate) / 100;
+  const igst = Number(input.igst || 0);
+  const cgst = Number(input.cgst || 0);
+  const sgst = Number(input.sgst || 0);
+  const igstAmount = (subtotal * igst) / 100;
+  const cgstAmount = (subtotal * cgst) / 100;
+  const sgstAmount = (subtotal * sgst) / 100;
+  const tax = igstAmount + cgstAmount + sgstAmount;
   const discountRate = Number(input.discountRate ?? 0);
-  const discount = input.discount !== undefined ? Number(input.discount) : (subtotal * discountRate) / 100;
+  const discount = (subtotal * discountRate) / 100;
   const total = Math.max(subtotal + tax - discount, 0);
   const requestedStatus = ["pending", "paid", "overdue"].includes(input.status) ? input.status : "pending";
   const amountPaid = requestedStatus === "paid" ? total : Math.min(Number(input.amountPaid || 0), total);
@@ -348,7 +495,14 @@ function calculateInvoice(input) {
     items: normalizedItems,
     subtotal,
     tax,
+    igst,
+    cgst,
+    sgst,
+    igstAmount,
+    cgstAmount,
+    sgstAmount,
     discount,
+    discountAmount: discount,
     total,
     amountPaid,
     amountDue,
@@ -454,6 +608,9 @@ async function handleAuth(req, res, parts) {
 
     setSessionCookie(res, admin);
     const db = await getDb();
+    await sendLoginAlertEmail(admin, req).catch((error) => {
+      console.error("Login alert email failed", error);
+    });
     await createNotification(db, {
       type: "success",
       title: "Admin login",
@@ -478,6 +635,9 @@ async function handleAuth(req, res, parts) {
     }
     await db.collection("otp_tokens").updateOne({ _id: latest._id }, { $set: { consumedAt: new Date() } });
     setSessionCookie(res, admin);
+    await sendLoginAlertEmail(admin, req).catch((error) => {
+      console.error("Login alert email failed", error);
+    });
     return json(res, 200, { success: true, admin: publicAdmin(admin) });
   }
 

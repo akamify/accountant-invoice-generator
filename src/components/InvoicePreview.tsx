@@ -59,8 +59,8 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       pdf.setProperties({
         title: `Invoice #${invoice.invoiceNumber}`,
         subject: `Invoice for ${invoice.clientName}`,
-        author: invoice.companyName || "Accountant Invoice",
-        creator: "Accountant Invoice",
+        author: invoice.companyName || "Ramesh Tyres",
+        creator: "Ramesh Tyres",
       });
 
       pdf.addImage(imageData, "PNG", pageMargin, positionY, imageWidth, imageHeight);

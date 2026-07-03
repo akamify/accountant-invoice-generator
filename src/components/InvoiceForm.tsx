@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,11 @@ export default function InvoiceForm() {
     clientPanNumber: "",
     clientGstNumber: "",
     clientAddress: "",
-    companyName: user?.company || "",
-    companyAddress: user?.address || "",
-    companyEmail: user?.email || "",
-    companyPanNumber: user?.companyPanNumber || "",
-    companyGstNumber: user?.companyGstNumber || "",
+    companyName: settings?.companyName || user?.company || "",
+    companyAddress: settings?.companyAddress || user?.address || "",
+    companyEmail: settings?.companyEmail || user?.email || "",
+    companyPanNumber: settings?.companyPanNumber || user?.companyPanNumber || "",
+    companyGstNumber: settings?.companyGstNumber || user?.companyGstNumber || "",
     currency,
     invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
     createdAt: new Date().toISOString().slice(0, 10),
@@ -53,6 +53,20 @@ export default function InvoiceForm() {
     bankAccount: "",
     upiId: "",
   });
+
+  useEffect(() => {
+    if (!settings && !user) return;
+
+    setInvoiceData((prev) => ({
+      ...prev,
+      companyName: settings?.companyName || user?.company || prev.companyName,
+      companyAddress: settings?.companyAddress || user?.address || prev.companyAddress,
+      companyEmail: settings?.companyEmail || user?.email || prev.companyEmail,
+      companyPanNumber: settings?.companyPanNumber || user?.companyPanNumber || prev.companyPanNumber,
+      companyGstNumber: settings?.companyGstNumber || user?.companyGstNumber || prev.companyGstNumber,
+      currency: settings?.currency || prev.currency,
+    }));
+  }, [settings, user]);
 
   // Calculate subtotal
   const subtotal = invoiceData.items.reduce((sum, item) => sum + item.amount, 0);
@@ -310,6 +324,7 @@ export default function InvoiceForm() {
                   name="clientName"
                   value={invoiceData.clientName}
                   onChange={handleClientChange}
+                  placeholder="Amit Sharma / Client company name"
                   required
                 />
               </div>
@@ -321,6 +336,7 @@ export default function InvoiceForm() {
                   name="clientPanNumber"
                   value={invoiceData.clientPanNumber}
                   onChange={handleClientChange}
+                  placeholder="AAAPA1234A"
                 />
               </div>
 
@@ -331,6 +347,7 @@ export default function InvoiceForm() {
                   name="clientGstNumber"
                   value={invoiceData.clientGstNumber}
                   onChange={handleClientChange}
+                  placeholder="27ABCDE1234F2Z5"
                 />
               </div>
 
@@ -342,6 +359,7 @@ export default function InvoiceForm() {
                   type="email"
                   value={invoiceData.clientEmail}
                   onChange={handleClientChange}
+                  placeholder="client@example.com"
                   required
                 />
               </div>
@@ -354,6 +372,7 @@ export default function InvoiceForm() {
                   value={invoiceData.clientAddress}
                   onChange={handleClientChange}
                   rows={3}
+                  placeholder="Client billing address, city, state, PIN"
                   required
                 />
               </div>
@@ -373,6 +392,7 @@ export default function InvoiceForm() {
                   name="companyName"
                   value={invoiceData.companyName}
                   onChange={handleCompanyChange}
+                  placeholder="Ramesh Tyres"
                   required
                 />
               </div>
@@ -385,6 +405,7 @@ export default function InvoiceForm() {
                   type="text"
                   value={invoiceData.companyPanNumber}
                   onChange={handleCompanyChange}
+                  placeholder="AAAPA1234A"
                 />
               </div>
 
@@ -396,6 +417,7 @@ export default function InvoiceForm() {
                   type="text"
                   value={invoiceData.companyGstNumber}
                   onChange={handleCompanyChange}
+                  placeholder="27ABCDE1234F2Z5"
                 />
               </div>
 
@@ -407,6 +429,7 @@ export default function InvoiceForm() {
                   type="email"
                   value={invoiceData.companyEmail}
                   onChange={handleCompanyChange}
+                  placeholder="billing@rameshtyres.com"
                   required
                 />
               </div>
@@ -419,6 +442,7 @@ export default function InvoiceForm() {
                   value={invoiceData.companyAddress}
                   onChange={handleCompanyChange}
                   rows={3}
+                  placeholder="Shop address, city, state, PIN"
                   required
                 />
               </div>
@@ -439,6 +463,7 @@ export default function InvoiceForm() {
                 name="invoiceNumber"
                 value={invoiceData.invoiceNumber}
                 onChange={handleClientChange}
+                placeholder="INV-000001"
                 required
               />
             </div>
@@ -504,7 +529,7 @@ export default function InvoiceForm() {
                         <Input
                           value={item.description}
                           onChange={(e) => handleItemChange(index, "description", e.target.value)}
-                          placeholder="Item Name"
+                          placeholder="Tyre model, service, or item description"
                           className="border bg-transparent focus-visible:ring-0 p-3"
                           required
                         />
@@ -516,7 +541,8 @@ export default function InvoiceForm() {
                           onChange={(e) =>
                             handleItemChange(index, "quantity", Number(e.target.value))
                           }
-                          min="1"
+                            min="1"
+                            placeholder="1"
                           className="text-center border bg-transparent focus-visible:ring-0 p-3"
                           required
                         />
@@ -532,6 +558,7 @@ export default function InvoiceForm() {
                             }
                             min="0"
                             step="0.01"
+                            placeholder="0.00"
                             className="text-center border bg-transparent focus-visible:ring-0 p-3"
                             required
                           />
@@ -696,7 +723,7 @@ export default function InvoiceForm() {
                       name="transactionId"
                       value={invoiceData.transactionId || ''}
                       onChange={handlePaymentFieldChange}
-                      placeholder="Enter transaction ID"
+                      placeholder="UTR / cheque / card transaction number"
                     />
                   </div>
                 )}
@@ -708,7 +735,7 @@ export default function InvoiceForm() {
                       name="bankAccount"
                       value={invoiceData.bankAccount || ''}
                       onChange={handlePaymentFieldChange}
-                      placeholder="Enter bank account number"
+                      placeholder="Bank account number"
                     />
                   </div>
                 )}
@@ -720,7 +747,7 @@ export default function InvoiceForm() {
                       name="upiId"
                       value={invoiceData.upiId || ''}
                       onChange={handlePaymentFieldChange}
-                      placeholder="Enter UPI ID"
+                      placeholder="name@upi"
                     />
                   </div>
                 )}

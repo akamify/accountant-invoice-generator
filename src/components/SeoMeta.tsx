@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
 
-const APP_NAME = "Accountant Invoice";
+const APP_NAME = "Ramesh Tyres";
 const DEFAULT_DESCRIPTION =
-  "Secure single-admin invoice management for invoices, payments, transactions, notifications, and analytics.";
+  "Invoice management for Ramesh Tyres invoices, payments, transactions, notifications, and analytics.";
 
 const ROUTE_META: Array<{ match: (path: string) => boolean; title: string; description: string }> = [
   {
@@ -74,12 +74,12 @@ const ROUTE_META: Array<{ match: (path: string) => boolean; title: string; descr
   {
     match: (path) => path === "/privacy",
     title: "Privacy Policy",
-    description: "Read how Accountant Invoice handles data and privacy.",
+    description: "Read how Ramesh Tyres handles data and privacy.",
   },
   {
     match: (path) => path === "/terms",
     title: "Terms of Service",
-    description: "Read the terms for using Accountant Invoice.",
+    description: "Read the terms for using Ramesh Tyres.",
   },
 ];
 

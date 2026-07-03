@@ -41,7 +41,7 @@ export const generatePDF = async (
       title: `Invoice #${invoiceData.invoiceNumber}`,
       subject: `Invoice for ${invoiceData.clientName}`,
       author: invoiceData.companyName,
-      creator: 'Invoice Builder App',
+      creator: 'Ramesh Tyres',
     });
 
     // Generate PDF as blob URL

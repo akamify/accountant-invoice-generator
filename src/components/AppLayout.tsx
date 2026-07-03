@@ -122,7 +122,7 @@ function getPageMeta(pathname: string): PageMeta {
   }
 
   return {
-    title: "Accountant Invoice",
+    title: "Ramesh Tyres",
     subtitle: "Manage invoices, transactions, payments, and account settings.",
   };
 }
@@ -142,7 +142,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     [location.pathname]
   );
 
-  const companyName = user?.companyName || "Accountant Invoice";
+  const companyName = user?.companyName || "Ramesh Tyres";
   const userEmail = user?.email || "Admin";
 
   const handleLogout = async () => {
@@ -174,22 +174,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex min-w-0 items-center gap-3">
             <img
               src="/logo.png"
-              alt="Accountant Invoice"
+              alt="Ramesh Tyres"
               className="h-10 w-10 shrink-0 rounded-[4px] object-contain"
             />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold tracking-tight text-slate-950">
-                Accountant Invoice
+                Ramesh Tyres
               </div>
               <div className="mt-0.5 truncate text-xs text-slate-500">
-                Admin dashboard
+                Invoice dashboard
               </div>
             </div>
           </div>
         ) : (
           <img
             src="/logo.png"
-            alt="Accountant Invoice"
+            alt="Ramesh Tyres"
             className="h-10 w-10 rounded-[4px] object-contain"
           />
         )}

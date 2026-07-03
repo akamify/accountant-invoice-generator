@@ -12,6 +12,17 @@ export function getCurrencySymbol(currency?: string | null) {
 }
 
 export function formatCurrencyAmount(value: number, currency?: string | null) {
-  const symbol = getCurrencySymbol(currency);
-  return `${symbol}${Number(value || 0).toFixed(2)}`;
+  const code = (currency || "INR").toUpperCase();
+  const amount = Number(value || 0);
+
+  try {
+    return new Intl.NumberFormat(code === "INR" ? "en-IN" : "en-US", {
+      style: "currency",
+      currency: code,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: code === "INR" ? 0 : 2,
+    }).format(amount);
+  } catch {
+    return `${getCurrencySymbol(code)}${Math.round(amount).toLocaleString("en-IN")}`;
+  }
 }
