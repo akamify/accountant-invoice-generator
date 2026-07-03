@@ -226,7 +226,7 @@ const InvoiceDetails = () => {
               variant="ghost"
               size="icon"
               onClick={() => navigate("/invoices")}
-              className="rounded-full"
+              className="rounded-[4px]"
             >
               <ArrowLeft size={18} />
             </Button>
@@ -237,11 +237,11 @@ const InvoiceDetails = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className={`text-xs px-3 py-1 rounded-full ${invoice.status === "paid"
+            <div className={`text-xs px-3 py-1 rounded-[4px] ${invoice.status === "paid"
               ? "bg-green-500/10 text-green-700 dark:text-green-500"
               : invoice.status === "overdue"
                 ? "bg-red-500/10 text-red-700 dark:text-red-500"
-                : "text-xs px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-700 dark:text-yellow-500"
+                : "text-xs px-3 py-1 rounded-[4px] bg-yellow-500/10 text-yellow-700 dark:text-yellow-500"
               }`}>
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </div>
@@ -273,7 +273,7 @@ const InvoiceDetails = () => {
 
         {/* Payment Form */}
         {showPaymentForm && (
-          <div className="mb-8 p-6 bg-card rounded-lg border shadow-sm">
+          <div className="mb-8 p-6 bg-card rounded-[4px] border shadow-sm">
             <h3 className="text-lg font-semibold mb-4">Payment Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

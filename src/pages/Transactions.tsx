@@ -100,12 +100,12 @@ export default function Transactions() {
                   <div>
                     <p className="font-medium">{transaction.title || `Invoice #${transaction.invoiceNumber}`}</p>
                     <p className="text-sm text-muted-foreground">
-                      {transaction.source || "manual"} • {new Date(transaction.transactionDate || transaction.date || transaction.createdAt || Date.now()).toLocaleDateString()}
+                      {transaction.source || "manual"} â€¢ {new Date(transaction.transactionDate || transaction.date || transaction.createdAt || Date.now()).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex items-center gap-4 text-right">
                     <p className={`font-medium ${transaction.type === "income" || transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}>
-                      {transaction.type === "income" || transaction.type === "credit" ? "+" : "-"}₹{Number(transaction.amount || 0).toFixed(2)}
+                      {transaction.type === "income" || transaction.type === "credit" ? "+" : "-"}â‚¹{Number(transaction.amount || 0).toFixed(2)}
                     </p>
                     <Button variant="outline" size="sm" onClick={() => handleDelete(transaction)} disabled={transaction.source === "invoice"}>
                       Delete

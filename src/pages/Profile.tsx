@@ -26,6 +26,8 @@ export default function Profile() {
     companyEmail: "",
     companyPhone: "",
     companyAddress: "",
+    companyPanNumber: "",
+    companyGstNumber: "",
     currency: "INR",
     invoicePrefix: "INV",
   });
@@ -42,6 +44,8 @@ export default function Profile() {
         companyEmail: settings.companyEmail || "",
         companyPhone: settings.companyPhone || "",
         companyAddress: settings.companyAddress || "",
+        companyPanNumber: settings.companyPanNumber || "",
+        companyGstNumber: settings.companyGstNumber || "",
         currency: settings.currency || "INR",
         invoicePrefix: settings.invoicePrefix || "INV",
       });
@@ -111,12 +115,14 @@ export default function Profile() {
         <CardHeader><CardTitle>Company Profile</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-6 md:grid-cols-2">
-            <Field label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} />
-            <Field label="Company Email" name="companyEmail" type="email" value={formData.companyEmail} onChange={handleChange} />
-            <Field label="Company Phone" name="companyPhone" value={formData.companyPhone} onChange={handleChange} />
-            <Field label="Invoice Prefix" name="invoicePrefix" value={formData.invoicePrefix} onChange={handleChange} />
-            <Field label="Currency" name="currency" value={formData.currency} onChange={handleChange} />
-            <Field label="Company Address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} className="md:col-span-2" />
+            <Field label="Company Name" name="companyName" value={formData.companyName} onChange={handleChange} placeholder="Accountant Invoice Pvt Ltd" />
+            <Field label="Company Email" name="companyEmail" type="email" value={formData.companyEmail} onChange={handleChange} placeholder="billing@company.com" />
+            <Field label="Company Phone" name="companyPhone" value={formData.companyPhone} onChange={handleChange} placeholder="+91 98765 43210" />
+            <Field label="Company PAN" name="companyPanNumber" value={formData.companyPanNumber} onChange={handleChange} placeholder="AAAPA1234A" />
+            <Field label="Company GST" name="companyGstNumber" value={formData.companyGstNumber} onChange={handleChange} placeholder="27ABCDE1234F2Z5" />
+            <Field label="Invoice Prefix" name="invoicePrefix" value={formData.invoicePrefix} onChange={handleChange} placeholder="INV" />
+            <Field label="Currency" name="currency" value={formData.currency} onChange={handleChange} placeholder="INR" />
+            <Field label="Company Address" name="companyAddress" value={formData.companyAddress} onChange={handleChange} placeholder="Office address, city, state, PIN" className="md:col-span-2" />
             <div className="md:col-span-2 flex justify-end">
               <Button type="submit" disabled={saving}>{saving ? "Saving..." : "Save Settings"}</Button>
             </div>
@@ -127,7 +133,7 @@ export default function Profile() {
       <Card>
         <CardHeader><CardTitle>Security</CardTitle></CardHeader>
         <CardContent className="space-y-6">
-          <div className="flex items-center justify-between rounded-md border p-4">
+          <div className="flex items-center justify-between rounded-[4px] border p-4">
             <div>
               <p className="font-medium">Login OTP Verification</p>
               <p className="text-sm text-muted-foreground">Send an OTP to admin email after password verification.</p>

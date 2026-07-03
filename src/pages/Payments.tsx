@@ -66,7 +66,7 @@ const Payments = () => {
             variant="ghost"
             size="icon"
             onClick={() => navigate("/dashboard")}
-            className="rounded-full"
+            className="rounded-[4px]"
           >
             <ArrowLeft size={18} />
           </Button>
@@ -113,9 +113,9 @@ const Payments = () => {
                       <TableCell className="font-medium">#{invoice.invoiceNumber}</TableCell>
                       <TableCell>{invoice.clientName}</TableCell>
                       <TableCell>{new Date(invoice.updatedAt || invoice.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>₹{invoice.total.toFixed(2)}</TableCell>
+                      <TableCell>â‚¹{invoice.total.toFixed(2)}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+                        <span className="inline-flex items-center rounded-[4px] bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                           Paid
                         </span>
                       </TableCell>

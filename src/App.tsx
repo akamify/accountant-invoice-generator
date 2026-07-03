@@ -21,6 +21,9 @@ import Payments from "./pages/Payments";
 import Transactions from "./pages/Transactions";
 import Invoices from "./pages/Invoices";
 import PublicInvoiceDownload from "./pages/PublicInvoiceDownload";
+import Analytics from "./pages/Analytics";
+import Notifications from "./pages/Notifications";
+import NotificationDetails from "./pages/NotificationDetails";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -69,6 +72,9 @@ const AppContent = () => (
     <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
     <Route path="/payments" element={<ProtectedPage><Payments /></ProtectedPage>} />
     <Route path="/transactions" element={<ProtectedPage><Transactions /></ProtectedPage>} />
+    <Route path="/analytics" element={<ProtectedPage><Analytics /></ProtectedPage>} />
+    <Route path="/notifications" element={<ProtectedPage><Notifications /></ProtectedPage>} />
+    <Route path="/notifications/:id" element={<ProtectedPage><NotificationDetails /></ProtectedPage>} />
 
     <Route path="/terms" element={<TermsOfService />} />
     <Route path="/privacy" element={<PrivacyPolicy />} />

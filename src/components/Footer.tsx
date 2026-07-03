@@ -10,8 +10,8 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="rounded-full p-1 bg-gradient-to-tr from-primary to-accent">
-                <div className="rounded-full bg-background p-1">
+              <div className="rounded-[4px] p-1 bg-gradient-to-tr from-primary to-accent">
+                <div className="rounded-[4px] bg-background p-1">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="20"
@@ -41,7 +41,7 @@ const Footer = () => {
 
         <div className="mt-12 pt-6 border-t flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            © {currentYear} Glow Invoice. All rights reserved.
+            Â© {currentYear} Glow Invoice. All rights reserved.
           </p>
           <div className="flex items-center space-x-6 mt-4 md:mt-0">
             <Link

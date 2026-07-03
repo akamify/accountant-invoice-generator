@@ -10,7 +10,12 @@ export default function Login() {
           </div>
 
           <div className="relative z-10 flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-3">
+              <img
+                src="/logo.png"
+                alt="Accountant Invoice"
+                className="h-11 w-11 rounded-[4px] bg-white object-contain"
+              />
               <div className="text-base font-semibold tracking-tight">
                 Accountant Invoice
               </div>
@@ -23,7 +28,7 @@ export default function Login() {
 
           <div className="relative z-10 my-auto max-w-xl">
             <div className="mb-5 inline-flex rounded-[4px] border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300">
-              Invoice · Transactions · Analytics
+              Invoice Â· Transactions Â· Analytics
             </div>
 
             <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-[-0.03em]">
@@ -60,7 +65,12 @@ export default function Login() {
         <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-8">
           <div className="w-full max-w-[380px]">
             <div className="mb-8 lg:hidden">
-              <div className="text-lg font-semibold tracking-tight">
+              <div className="flex items-center gap-3 text-lg font-semibold tracking-tight">
+                <img
+                  src="/logo.png"
+                  alt="Accountant Invoice"
+                  className="h-11 w-11 rounded-[4px] object-contain"
+                />
                 Accountant Invoice
               </div>
             </div>

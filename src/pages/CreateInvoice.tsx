@@ -29,7 +29,7 @@ const CreateInvoice = () => {
             variant="ghost"
             size="icon"
             onClick={() => navigate("/dashboard")}
-            className="rounded-full"
+            className="rounded-[4px]"
           >
             <ArrowLeft size={18} />
           </Button>

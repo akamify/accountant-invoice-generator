@@ -25,6 +25,8 @@ export type AppSettings = {
   companyEmail: string;
   companyPhone?: string;
   companyAddress?: string;
+  companyPanNumber?: string;
+  companyGstNumber?: string;
   logoUrl?: string;
   currency: string;
   invoicePrefix: string;
@@ -89,8 +91,8 @@ function mapAdmin(admin: any, settings?: AppSettings | null): AdminUser {
     companyAddress: settings?.companyAddress || "",
     address: settings?.companyAddress || "",
     phone: settings?.companyPhone || "",
-    companyPanNumber: "",
-    companyGstNumber: "",
+    companyPanNumber: settings?.companyPanNumber || "",
+    companyGstNumber: settings?.companyGstNumber || "",
   };
 }
 

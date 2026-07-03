@@ -104,7 +104,7 @@
 }
 
 .glass-morphism {
-  @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl;
+  @apply bg-white/10 backdrop-blur-lg border border-white/20 rounded-[4px];
 }
 
 .dark .glass-morphism {

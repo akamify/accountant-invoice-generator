@@ -26,7 +26,7 @@ const hasWebGL = (): boolean => {
 // Simple loading component
 const Loader = () => (
   <div className="fixed top-0 left-0 w-full h-full -z-10 flex items-center justify-center">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+    <div className="animate-spin rounded-[4px] h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
   </div>
 );
 

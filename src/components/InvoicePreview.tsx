@@ -380,8 +380,8 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
                   <tr key={item.id} className="border-b">
                     <td className="py-3 pl-0">{item.description}</td>
                     <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">₹{item.unitPrice.toFixed(2)}</td>
-                    <td className="py-3 text-right pr-0">₹{(item.amount || 0).toFixed(2)}</td>
+                    <td className="py-3 text-right">â‚¹{item.unitPrice.toFixed(2)}</td>
+                    <td className="py-3 text-right pr-0">â‚¹{(item.amount || 0).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -394,27 +394,27 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
               <div className="w-72 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span>₹{(invoice.subtotal || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">IGST ({invoice.igst || 0}%):</span>
-                  <span>₹{(invoice.igstAmount || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.igstAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">CGST ({invoice.cgst || 0}%):</span>
-                  <span>₹{(invoice.cgstAmount || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.cgstAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">SGST ({invoice.sgst || 0}%):</span>
-                  <span>₹{(invoice.sgstAmount || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.sgstAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Discount ({invoice.discountRate || 0}%):</span>
-                  <span>₹{(invoice.discountAmount || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.discountAmount || 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t font-medium text-lg">
                   <span>Total:</span>
-                  <span>₹{(invoice.total || 0).toFixed(2)}</span>
+                  <span>â‚¹{(invoice.total || 0).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -428,7 +428,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
             {/* Payment Details */}
             {invoice.status === 'paid' && invoice.paymentMode && (
-              <div className="p-6 bg-muted rounded-lg border">
+              <div className="p-6 bg-muted rounded-[4px] border">
                 <h3 className="font-medium text-lg mb-4">Payment Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>

@@ -522,7 +522,7 @@ export default function InvoiceForm() {
               </Button>
             </div>
 
-            <div className="rounded-md border overflow-hidden">
+            <div className="rounded-[4px] border overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="bg-muted/50">
@@ -559,7 +559,7 @@ export default function InvoiceForm() {
                       </td>
                       <td className="p-2">
                         <div className="flex items-center">
-                          <span className="mr-1 text-muted-foreground">₹</span>
+                          <span className="mr-1 text-muted-foreground">â‚¹</span>
                           <Input
                             type="number"
                             value={item.unitPrice}
@@ -574,7 +574,7 @@ export default function InvoiceForm() {
                         </div>
                       </td>
                       <td className="p-2 text-center">
-                        ₹{item.amount.toFixed(2)}
+                        â‚¹{item.amount.toFixed(2)}
                       </td>
                       <td className="p-2 text-center">
                         <Button
@@ -598,7 +598,7 @@ export default function InvoiceForm() {
           <div className="mt-8 space-y-4 ml-auto max-w-xs">
             <div className="flex justify-between">
               <span className="text-sm">Subtotal:</span>
-              <span>₹{subtotal.toFixed(2)}</span>
+              <span>â‚¹{subtotal.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -615,7 +615,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>₹{igstAmount.toFixed(2)}</span>
+              <span>â‚¹{igstAmount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -632,7 +632,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>₹{cgstAmount.toFixed(2)}</span>
+              <span>â‚¹{cgstAmount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -649,7 +649,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>₹{sgstAmount.toFixed(2)}</span>
+              <span>â‚¹{sgstAmount.toFixed(2)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -666,24 +666,24 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>₹{discountAmount.toFixed(2)}</span>
+              <span>â‚¹{discountAmount.toFixed(2)}</span>
             </div>
 
             {subtotal > 1000 && discountRate === 5 && (
               <div className="text-xs text-accent-foreground">
-                Automatic 5% discount applied for orders over ₹1,000
+                Automatic 5% discount applied for orders over â‚¹1,000
               </div>
             )}
 
             {subtotal > 5000 && discountRate === 10 && (
               <div className="text-xs text-accent-foreground">
-                Automatic 10% discount applied for orders over ₹5,000
+                Automatic 10% discount applied for orders over â‚¹5,000
               </div>
             )}
 
             <div className="pt-2 border-t flex justify-between font-medium">
               <span>Total:</span>
-              <span className="text-lg">₹{total.toFixed(2)}</span>
+              <span className="text-lg">â‚¹{total.toFixed(2)}</span>
             </div>
           </div>
 
@@ -719,7 +719,7 @@ export default function InvoiceForm() {
 
           {/* Payment Details (only shown when status is paid) */}
           {invoiceData.status === 'paid' && (
-            <div className="mt-6 p-4 bg-muted rounded-lg">
+            <div className="mt-6 p-4 bg-muted rounded-[4px]">
               <h4 className="font-medium mb-4">Payment Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

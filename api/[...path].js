@@ -1,7 +1,6 @@
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { z } from "zod";
 
@@ -42,6 +41,10 @@ function env(name) {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
+}
+
+function optionalEnv(name) {
+  return process.env[name] || "";
 }
 
 async function getDb() {
@@ -159,6 +162,8 @@ async function ensureSettings(db, adminEmail) {
     companyEmail: adminEmail,
     companyPhone: "",
     companyAddress: "",
+    companyPanNumber: "",
+    companyGstNumber: "",
     logoUrl: "",
     currency: "INR",
     invoicePrefix: "INV",
@@ -211,26 +216,29 @@ function generateToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    host: env("SMTP_HOST"),
-    port: Number(env("SMTP_PORT")),
-    secure: Number(env("SMTP_PORT")) === 465,
-    auth: {
-      user: env("SMTP_USER"),
-      pass: env("SMTP_PASS"),
-    },
-  });
-}
-
 async function sendMail({ to, subject, html, text }) {
-  await getTransporter().sendMail({
-    from: env("SMTP_FROM"),
-    to,
-    subject,
-    html,
-    text,
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "api-key": env("BREVO_API_KEY"),
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        email: env("BREVO_FROM_EMAIL"),
+        name: optionalEnv("BREVO_FROM_NAME") || "Accountant Invoice",
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text,
+    }),
   });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw Object.assign(new Error(`Brevo email failed (${response.status})${detail ? `: ${detail}` : ""}`), { statusCode: 502 });
+  }
 }
 
 async function sendOtpEmail(email, otp, purpose) {
@@ -273,6 +281,28 @@ function serializeInvoice(doc) {
     _id: undefined,
     publicDownloadTokenHash: undefined,
   };
+}
+
+function serializeNotification(doc) {
+  return {
+    ...doc,
+    id: doc._id.toString(),
+    _id: undefined,
+  };
+}
+
+async function createNotification(db, input) {
+  const now = new Date();
+  await db.collection("notifications").insertOne({
+    type: input.type || "info",
+    title: input.title,
+    message: input.message,
+    entityType: input.entityType || "",
+    entityId: input.entityId || null,
+    href: input.href || "",
+    readAt: null,
+    createdAt: now,
+  });
 }
 
 function calculateInvoice(input) {
@@ -371,6 +401,13 @@ async function handleAuth(req, res, parts) {
     }
 
     setSessionCookie(res, admin);
+    const db = await getDb();
+    await createNotification(db, {
+      type: "success",
+      title: "Admin login",
+      message: "Admin signed in successfully.",
+      href: "/profile",
+    });
     return json(res, 200, { success: true, admin: publicAdmin(admin) });
   }
 
@@ -465,6 +502,8 @@ async function handleSettings(req, res, parts) {
       companyEmail: z.string().email().optional(),
       companyPhone: z.string().optional(),
       companyAddress: z.string().optional(),
+      companyPanNumber: z.string().optional(),
+      companyGstNumber: z.string().optional(),
       logoUrl: z.string().optional(),
       currency: z.string().optional(),
       invoicePrefix: z.string().optional(),
@@ -555,6 +594,14 @@ async function handleInvoices(req, res, parts) {
     const result = await collection.insertOne(invoice);
     const saved = { _id: result.insertedId, ...invoice };
     if (saved.amountPaid > 0) await upsertInvoiceTransaction(db, saved);
+    await createNotification(db, {
+      type: "info",
+      title: "Invoice created",
+      message: `Invoice ${saved.invoiceNumber} for ${saved.clientName} was created.`,
+      entityType: "invoice",
+      entityId: result.insertedId,
+      href: `/invoices/${result.insertedId.toString()}`,
+    });
     if (saved.clientEmail) {
       const downloadUrl = `${env("APP_BASE_URL")}/invoice-download/${token}`;
       await sendInvoiceCreatedEmail(saved, downloadUrl);
@@ -685,6 +732,29 @@ async function handleAnalytics(req, res, parts) {
   }
   const statusMap = {};
   for (const invoice of invoices) statusMap[invoice.status] = (statusMap[invoice.status] || 0) + 1;
+  const now = new Date();
+  const overdueAlerts = invoices
+    .filter((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled" && invoice.dueDate && new Date(invoice.dueDate) < now)
+    .slice(0, 8)
+    .map((invoice) => ({
+      id: invoice._id.toString(),
+      invoiceNumber: invoice.invoiceNumber,
+      clientName: invoice.clientName,
+      amountDue: Number(invoice.amountDue || 0),
+      dueDate: invoice.dueDate,
+      href: `/invoices/${invoice._id.toString()}`,
+    }));
+  const pendingAlerts = invoices
+    .filter((invoice) => ["sent", "pending", "partially_paid", "overdue"].includes(invoice.status) && Number(invoice.amountDue || 0) > 0)
+    .slice(0, 8)
+    .map((invoice) => ({
+      id: invoice._id.toString(),
+      invoiceNumber: invoice.invoiceNumber,
+      clientName: invoice.clientName,
+      amountDue: Number(invoice.amountDue || 0),
+      status: invoice.status,
+      href: `/invoices/${invoice._id.toString()}`,
+    }));
 
   return json(res, 200, {
     totalRevenue,
@@ -700,7 +770,44 @@ async function handleAnalytics(req, res, parts) {
     recentTransactions: transactions.slice(0, 5).map((tx) => ({ ...tx, id: tx._id.toString(), _id: undefined })),
     recentInvoices: invoices.slice(0, 5).map(serializeInvoice),
     invoiceStatusBreakdown: Object.entries(statusMap).map(([status, count]) => ({ status, count })),
+    pendingAlerts,
+    overdueAlerts,
   });
+}
+
+async function handleNotifications(req, res, parts) {
+  await requireAuth(req);
+  const db = await getDb();
+  const id = parts[1];
+  const collection = db.collection("notifications");
+
+  if (req.method === "GET" && !id) {
+    const limit = Math.min(Number(req.query.limit || 50), 100);
+    const notifications = await collection.find({}).sort({ createdAt: -1 }).limit(limit).toArray();
+    const unreadCount = await collection.countDocuments({ readAt: null });
+    return json(res, 200, { notifications: notifications.map(serializeNotification), unreadCount });
+  }
+
+  if (req.method === "GET" && id) {
+    if (!ObjectId.isValid(id)) return json(res, 400, { error: "Invalid notification id" });
+    const notification = await collection.findOne({ _id: new ObjectId(id) });
+    if (!notification) return json(res, 404, { error: "Notification not found" });
+    return json(res, 200, { notification: serializeNotification(notification) });
+  }
+
+  if (req.method === "PATCH" && id === "read-all") {
+    await collection.updateMany({ readAt: null }, { $set: { readAt: new Date() } });
+    return json(res, 200, { success: true });
+  }
+
+  if (req.method === "PATCH" && id) {
+    if (!ObjectId.isValid(id)) return json(res, 400, { error: "Invalid notification id" });
+    await collection.updateOne({ _id: new ObjectId(id) }, { $set: { readAt: new Date() } });
+    const notification = await collection.findOne({ _id: new ObjectId(id) });
+    return json(res, 200, { notification: serializeNotification(notification) });
+  }
+
+  return json(res, 404, { error: "Not found" });
 }
 
 async function handlePublic(req, res, parts) {
@@ -733,6 +840,7 @@ export default async function handler(req, res) {
     if (root === "invoices") return await handleInvoices(req, res, path);
     if (root === "transactions") return await handleTransactions(req, res, path);
     if (root === "analytics") return await handleAnalytics(req, res, path);
+    if (root === "notifications") return await handleNotifications(req, res, path);
     if (root === "public") return await handlePublic(req, res, path);
     return json(res, 404, { error: "Not found" });
   } catch (error) {

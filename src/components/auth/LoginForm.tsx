@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { requestBrowserNotificationPermission } from "@/utils/notifications";
 
 export function LoginForm() {
   const [password, setPassword] = useState("");
@@ -24,6 +25,7 @@ export function LoginForm() {
     try {
       if (requiresOtp) {
         await verifyLoginOtp(otp);
+        await requestBrowserNotificationPermission();
         navigate("/dashboard", { replace: true });
         return;
       }
@@ -35,6 +37,7 @@ export function LoginForm() {
         return;
       }
 
+      await requestBrowserNotificationPermission();
       navigate("/dashboard", { replace: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed");
