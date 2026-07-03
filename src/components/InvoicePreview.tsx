@@ -22,6 +22,10 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
   // Limit the number of line items shown in the preview / PDF
   const maxItemsToShow = 10;
   const displayedItems = invoice.items.slice(0, maxItemsToShow);
+  const truncateItemName = (value?: string) => {
+    const text = String(value || "").trim();
+    return text.length > 58 ? `${text.slice(0, 58)}...` : text;
+  };
 
   const [isSharing, setIsSharing] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -52,8 +56,13 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       const imageHeight = (canvas.height * imageWidth) / canvas.width;
       const pageContentHeight = pdfHeight - pageMargin * 2;
       const imageData = canvas.toDataURL("image/png", 1);
+      const fitsSinglePage = imageHeight <= pageContentHeight * 1.2;
+      const fitRatio = fitsSinglePage ? Math.min(1, pageContentHeight / imageHeight) : 1;
+      const renderWidth = imageWidth * fitRatio;
+      const renderHeight = imageHeight * fitRatio;
+      const renderX = pageMargin + (imageWidth - renderWidth) / 2;
 
-      let remainingHeight = imageHeight;
+      let remainingHeight = renderHeight;
       let positionY = pageMargin;
 
       pdf.setProperties({
@@ -63,13 +72,13 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
         creator: "Ramesh Tyres",
       });
 
-      pdf.addImage(imageData, "PNG", pageMargin, positionY, imageWidth, imageHeight);
+      pdf.addImage(imageData, "PNG", renderX, positionY, renderWidth, renderHeight);
       remainingHeight -= pageContentHeight;
 
       while (remainingHeight > 0) {
         pdf.addPage();
-        positionY = pageMargin - (imageHeight - remainingHeight);
-        pdf.addImage(imageData, "PNG", pageMargin, positionY, imageWidth, imageHeight);
+        positionY = pageMargin - (renderHeight - remainingHeight);
+        pdf.addImage(imageData, "PNG", renderX, positionY, renderWidth, renderHeight);
         remainingHeight -= pageContentHeight;
       }
 
@@ -146,7 +155,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       </div>
 
       <Card className="p-8 max-w-4xl mx-auto bg-white dark:bg-card" id="invoice-preview">
-        <div className="flex flex-col min-h-[1000px]">
+        <div className="flex flex-col">
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-primary">INVOICE</h1>
@@ -213,7 +222,13 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
           </div>
 
           <div className="mt-12">
-            <table className="w-full">
+            <table className="w-full table-fixed">
+              <colgroup>
+                <col className="w-[52%]" />
+                <col className="w-[12%]" />
+                <col className="w-[18%]" />
+                <col className="w-[18%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b">
                   <th className="text-left p-2 pl-0 font-semibold">Item</th>
@@ -225,7 +240,11 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
               <tbody>
                 {displayedItems.map((item) => (
                   <tr key={item.id} className="border-b">
-                    <td className="py-3 pl-0">{item.description}</td>
+                    <td className="max-w-0 py-3 pl-0 pr-4">
+                      <span className="block truncate" title={item.description}>
+                        {truncateItemName(item.description)}
+                      </span>
+                    </td>
                     <td className="py-3 text-right">{item.quantity}</td>
                     <td className="py-3 text-right">{formatCurrencyAmount(item.unitPrice, currency)}</td>
                     <td className="py-3 text-right pr-0">{formatCurrencyAmount(item.amount || 0, currency)}</td>
@@ -235,8 +254,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
             </table>
           </div>
 
-          {/* Bottom section pinned to the bottom of the card */}
-          <div className="mt-auto space-y-8">
+          <div className="mt-10 space-y-8">
             <div className="flex justify-end">
               <div className="w-72 space-y-2">
                 <div className="flex justify-between">
@@ -310,10 +328,6 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
                 </div>
               </div>
             )}
-
-            <div className="text-center text-sm text-muted-foreground">
-              <p>This is computer generated invoice.</p>
-            </div>
           </div>
         </div>
       </Card>
