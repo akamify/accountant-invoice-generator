@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { InvoiceFormData, InvoiceItem } from "@/types/invoice";
 import { createInvoice } from "@/services/invoiceService";
 import { formatCurrencyAmount, getCurrencySymbol } from "@/utils/currency";
+import { normalizeGst, normalizePan, validateInvoiceContact } from "@/utils/validation";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
@@ -20,12 +21,14 @@ export default function InvoiceForm() {
   const [invoiceData, setInvoiceData] = useState<InvoiceFormData>({
     clientName: "",
     clientEmail: "",
+    clientPhone: "",
     clientPanNumber: "",
     clientGstNumber: "",
     clientAddress: "",
     companyName: settings?.companyName || user?.company || "",
     companyAddress: settings?.companyAddress || user?.address || "",
     companyEmail: settings?.companyEmail || user?.email || "",
+    companyPhone: settings?.companyPhone || user?.phone || "",
     companyPanNumber: settings?.companyPanNumber || user?.companyPanNumber || "",
     companyGstNumber: settings?.companyGstNumber || user?.companyGstNumber || "",
     currency,
@@ -62,6 +65,7 @@ export default function InvoiceForm() {
       companyName: settings?.companyName || user?.company || prev.companyName,
       companyAddress: settings?.companyAddress || user?.address || prev.companyAddress,
       companyEmail: settings?.companyEmail || user?.email || prev.companyEmail,
+      companyPhone: settings?.companyPhone || user?.phone || prev.companyPhone,
       companyPanNumber: settings?.companyPanNumber || user?.companyPanNumber || prev.companyPanNumber,
       companyGstNumber: settings?.companyGstNumber || user?.companyGstNumber || prev.companyGstNumber,
       currency: settings?.currency || prev.currency,
@@ -89,7 +93,11 @@ export default function InvoiceForm() {
     const { name, value } = e.target;
     setInvoiceData({
       ...invoiceData,
-      [name]: value,
+      [name]: name.toLowerCase().includes("pan")
+        ? normalizePan(value)
+        : name.toLowerCase().includes("gst")
+          ? normalizeGst(value)
+          : value,
     });
   };
 
@@ -97,7 +105,11 @@ export default function InvoiceForm() {
     const { name, value } = e.target;
     setInvoiceData({
       ...invoiceData,
-      [name]: value,
+      [name]: name.toLowerCase().includes("pan")
+        ? normalizePan(value)
+        : name.toLowerCase().includes("gst")
+          ? normalizeGst(value)
+          : value,
     });
   };
 
@@ -226,30 +238,14 @@ export default function InvoiceForm() {
       return;
     }
 
+    const contactError = validateInvoiceContact(invoiceData);
+    if (contactError) {
+      toast.error(contactError);
+      return;
+    }
+
     // Validate payment details if status is paid
     if (invoiceData.status === 'paid') {
-      // Validate PAN numbers if provided
-      if (invoiceData.clientPanNumber && !/^([A-Z]){5}([0-9]){4}([A-Z]){1}$/.test(invoiceData.clientPanNumber)) {
-        toast.error("Invalid Client PAN format. Expected format: AAAPA1234A");
-        return;
-      }
-
-      if (invoiceData.companyPanNumber && !/^([A-Z]){5}([0-9]){4}([A-Z]){1}$/.test(invoiceData.companyPanNumber)) {
-        toast.error("Invalid Company PAN format. Expected format: AAAPA1234A");
-        return;
-      }
-
-      // Validate GST numbers if provided
-      if (invoiceData.clientGstNumber && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(invoiceData.clientGstNumber)) {
-        toast.error("Invalid Client GST format. Expected format: 27ABCDE1234F2Z5");
-        return;
-      }
-
-      if (invoiceData.companyGstNumber && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(invoiceData.companyGstNumber)) {
-        toast.error("Invalid Company GST format. Expected format: 27ABCDE1234F2Z5");
-        return;
-      }
-
       // Validate optional payment identifiers only when provided.
       if (invoiceData.paymentMode === 'upi') {
         if (invoiceData.upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$|^\d{10}@upi$/.test(invoiceData.upiId)) {
@@ -365,6 +361,17 @@ export default function InvoiceForm() {
               </div>
 
               <div>
+                <label htmlFor="clientPhone" className="text-sm font-medium">Client Phone (Optional)</label>
+                <Input
+                  id="clientPhone"
+                  name="clientPhone"
+                  value={invoiceData.clientPhone || ""}
+                  onChange={handleClientChange}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+
+              <div>
                 <label htmlFor="clientAddress" className="text-sm font-medium">Client Address</label>
                 <Textarea
                   id="clientAddress"
@@ -431,6 +438,17 @@ export default function InvoiceForm() {
                   onChange={handleCompanyChange}
                   placeholder="billing@rameshtyres.com"
                   required
+                />
+              </div>
+
+              <div>
+                <label htmlFor="companyPhone" className="text-sm font-medium">Company Phone (Optional)</label>
+                <Input
+                  id="companyPhone"
+                  name="companyPhone"
+                  value={invoiceData.companyPhone || ""}
+                  onChange={handleCompanyChange}
+                  placeholder="+91 98765 43210"
                 />
               </div>
 

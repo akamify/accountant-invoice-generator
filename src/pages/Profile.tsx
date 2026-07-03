@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { normalizeGst, normalizePan, validateCompanyProfile, isValidEmail } from "@/utils/validation";
 
 async function apiRequest(path: string, options: RequestInit = {}) {
   const response = await fetch(path, {
@@ -54,11 +55,23 @@ export default function Profile() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name.toLowerCase().includes("pan")
+        ? normalizePan(value)
+        : name.toLowerCase().includes("gst")
+          ? normalizeGst(value)
+          : value,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const validationError = validateCompanyProfile(formData);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
     setSaving(true);
     try {
       await updateUser(formData);
@@ -84,6 +97,10 @@ export default function Profile() {
   };
 
   const requestEmailChange = async () => {
+    if (!isValidEmail(newEmail)) {
+      toast.error("Enter a valid admin email address");
+      return;
+    }
     await apiRequest("/api/settings/request-email-change", {
       method: "POST",
       body: JSON.stringify({ newEmail }),

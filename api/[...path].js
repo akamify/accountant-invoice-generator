@@ -9,6 +9,9 @@ const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24;
 const OTP_MAX_AGE_MS = 10 * 60 * 1000;
 const RESET_MAX_AGE_MS = 30 * 60 * 1000;
 const APP_NAME = "Ramesh Tyres";
+const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+const GST_PATTERN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][A-Z0-9]Z[A-Z0-9]$/;
+const PHONE_PATTERN = /^\+?[0-9][0-9\s-]{6,18}[0-9]$/;
 
 let cachedClient = globalThis.__accountantMongoClient;
 let cachedDb = globalThis.__accountantMongoDb;
@@ -50,6 +53,37 @@ function env(name) {
 function optionalEnv(name) {
   return process.env[name] || "";
 }
+
+const trimString = (value) => String(value ?? "").trim();
+const upperString = (value) => trimString(value).toUpperCase();
+
+const requiredNameSchema = (label) => z.string().trim().min(2, `${label} must be at least 2 characters`).max(120, `${label} is too long`);
+const requiredEmailSchema = (label) => z.string().trim().email(`Enter a valid ${label.toLowerCase()} email address`).max(160, `${label} email is too long`);
+const optionalEmailSchema = (label) => z.preprocess(
+  trimString,
+  z.union([z.literal(""), z.string().email(`Enter a valid ${label.toLowerCase()} email address`).max(160, `${label} email is too long`)])
+);
+const requiredAddressSchema = (label) => z.string().trim().min(5, `${label} address must be at least 5 characters`).max(500, `${label} address is too long`);
+const optionalAddressSchema = (label) => z.preprocess(
+  trimString,
+  z.union([z.literal(""), z.string().min(5, `${label} address must be at least 5 characters`).max(500, `${label} address is too long`)])
+);
+const optionalPhoneSchema = (label) => z.preprocess(
+  trimString,
+  z.string().refine((value) => {
+    if (!value) return true;
+    const digits = value.replace(/\D/g, "");
+    return digits.length >= 7 && digits.length <= 15 && PHONE_PATTERN.test(value);
+  }, `Enter a valid ${label.toLowerCase()} phone number`)
+);
+const optionalPanSchema = (label) => z.preprocess(
+  upperString,
+  z.string().refine((value) => !value || PAN_PATTERN.test(value), `Invalid ${label} PAN format. Example: AAAPA1234A`)
+);
+const optionalGstSchema = (label) => z.preprocess(
+  upperString,
+  z.string().refine((value) => !value || GST_PATTERN.test(value), `Invalid ${label} GST format. Example: 27ABCDE1234F2Z5`)
+);
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -714,15 +748,15 @@ async function handleSettings(req, res, parts) {
 
   if (req.method === "PATCH" && !action) {
     const body = z.object({
-      companyName: z.string().optional(),
-      companyEmail: z.string().email().optional(),
-      companyPhone: z.string().optional(),
-      companyAddress: z.string().optional(),
-      companyPanNumber: z.string().optional(),
-      companyGstNumber: z.string().optional(),
+      companyName: requiredNameSchema("Company name").optional(),
+      companyEmail: requiredEmailSchema("Company").optional(),
+      companyPhone: optionalPhoneSchema("Company").optional(),
+      companyAddress: requiredAddressSchema("Company").optional(),
+      companyPanNumber: optionalPanSchema("company").optional(),
+      companyGstNumber: optionalGstSchema("company").optional(),
       logoUrl: z.string().optional(),
-      currency: z.string().optional(),
-      invoicePrefix: z.string().optional(),
+      currency: z.string().trim().min(3).max(3).optional(),
+      invoicePrefix: z.string().trim().min(1).max(12).optional(),
     }).parse(await readBody(req));
     await db.collection("settings").updateOne({ _id: settings._id }, { $set: { ...body, updatedAt: new Date() } });
     return json(res, 200, { success: true });
@@ -736,7 +770,7 @@ async function handleSettings(req, res, parts) {
   }
 
   if (req.method === "POST" && action === "request-email-change") {
-    const body = z.object({ newEmail: z.string().email() }).parse(await readBody(req));
+    const body = z.object({ newEmail: requiredEmailSchema("Admin") }).parse(await readBody(req));
     const otp = generateOtp();
     await db.collection("otp_tokens").insertOne({
       adminId: admin._id,
@@ -752,7 +786,7 @@ async function handleSettings(req, res, parts) {
   }
 
   if (req.method === "POST" && action === "verify-email-change") {
-    const body = z.object({ newEmail: z.string().email(), otp: z.string().min(4) }).parse(await readBody(req));
+    const body = z.object({ newEmail: requiredEmailSchema("Admin"), otp: z.string().min(4) }).parse(await readBody(req));
     const token = await db.collection("otp_tokens").findOne(
       { adminId: admin._id, type: "email_change", email: body.newEmail.toLowerCase(), consumedAt: null, expiresAt: { $gt: new Date() } },
       { sort: { createdAt: -1 } }
@@ -789,11 +823,19 @@ async function handleInvoices(req, res, parts) {
   if (req.method === "POST" && !id) {
     const settings = await ensureSettings(db, (await ensureAdminSeeded()).email);
     const body = z.object({
-      clientName: z.string().min(1),
-      clientEmail: z.string().email().optional().or(z.literal("")),
-      clientPhone: z.string().optional(),
-      billingAddress: z.string().optional(),
-      clientAddress: z.string().optional(),
+      clientName: requiredNameSchema("Client name"),
+      clientEmail: requiredEmailSchema("Client"),
+      clientPhone: optionalPhoneSchema("Client").optional(),
+      billingAddress: optionalAddressSchema("Client").optional(),
+      clientAddress: requiredAddressSchema("Client"),
+      clientPanNumber: optionalPanSchema("client").optional(),
+      clientGstNumber: optionalGstSchema("client").optional(),
+      companyName: requiredNameSchema("Company name"),
+      companyEmail: requiredEmailSchema("Company"),
+      companyPhone: optionalPhoneSchema("Company").optional(),
+      companyAddress: requiredAddressSchema("Company"),
+      companyPanNumber: optionalPanSchema("company").optional(),
+      companyGstNumber: optionalGstSchema("company").optional(),
       items: z.array(z.any()).min(1),
     }).passthrough().parse(await readBody(req));
     if (!["pending", "paid"].includes(body.status || "pending")) {
@@ -866,7 +908,21 @@ async function handleInvoices(req, res, parts) {
   if (req.method === "PATCH") {
     const existing = await collection.findOne({ _id, deletedAt: { $exists: false } });
     if (!existing) return json(res, 404, { error: "Invoice not found" });
-    const body = await readBody(req);
+    const body = z.object({
+      clientName: requiredNameSchema("Client name").optional(),
+      clientEmail: requiredEmailSchema("Client").optional(),
+      clientPhone: optionalPhoneSchema("Client").optional(),
+      billingAddress: optionalAddressSchema("Client").optional(),
+      clientAddress: optionalAddressSchema("Client").optional(),
+      clientPanNumber: optionalPanSchema("client").optional(),
+      clientGstNumber: optionalGstSchema("client").optional(),
+      companyName: requiredNameSchema("Company name").optional(),
+      companyEmail: requiredEmailSchema("Company").optional(),
+      companyPhone: optionalPhoneSchema("Company").optional(),
+      companyAddress: optionalAddressSchema("Company").optional(),
+      companyPanNumber: optionalPanSchema("company").optional(),
+      companyGstNumber: optionalGstSchema("company").optional(),
+    }).passthrough().parse(await readBody(req));
     if (body.status && body.status !== "paid") {
       return json(res, 400, { error: "Only pending or overdue invoices can be marked paid" });
     }
@@ -1109,7 +1165,8 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error(error);
     if (error instanceof z.ZodError) {
-      return json(res, 400, { error: "Validation failed", details: error.flatten() });
+      const first = error.issues?.[0]?.message || "Validation failed";
+      return json(res, 400, { error: first, details: error.flatten() });
     }
     const status = error.statusCode || 500;
     const showMessage = error.exposeToClient || status !== 500 || !isProduction();
