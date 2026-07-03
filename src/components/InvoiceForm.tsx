@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/contexts/AuthContext";
 import { InvoiceFormData, InvoiceItem } from "@/types/invoice";
 import { createInvoice } from "@/services/invoiceService";
+import { formatCurrencyAmount, getCurrencySymbol } from "@/utils/currency";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, settings } = useAuth();
+  const currency = settings?.currency || "INR";
 
   const [invoiceData, setInvoiceData] = useState<InvoiceFormData>({
     clientName: "",
@@ -26,6 +28,7 @@ export default function InvoiceForm() {
     companyEmail: user?.email || "",
     companyPanNumber: user?.companyPanNumber || "",
     companyGstNumber: user?.companyGstNumber || "",
+    currency,
     invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
     createdAt: new Date().toISOString().slice(0, 10),
     // Only set dueDate if status is not 'paid'
@@ -43,6 +46,7 @@ export default function InvoiceForm() {
     sgst: 0,
     cgst: 0,
     discountRate: 0,
+    status: "pending",
     notes: "Thanks for your business!",
     paymentMode: "bank_transfer",
     transactionId: "",
@@ -60,16 +64,7 @@ export default function InvoiceForm() {
   // Calculate total tax amount
   const totalTaxAmount = igstAmount + cgstAmount + sgstAmount;
 
-  // Calculate discount amount (with automatic discount based on total)
-  let discountRate = invoiceData.discountRate;
-  // If subtotal is over 1000, give at least 5% discount
-  if (subtotal > 1000 && discountRate < 5) {
-    discountRate = 5;
-  }
-  // If subtotal is over 5000, give at least 10% discount
-  if (subtotal > 5000 && discountRate < 10) {
-    discountRate = 10;
-  }
+  const discountRate = Number(invoiceData.discountRate || 0);
 
   const discountAmount = (subtotal * discountRate) / 100;
 
@@ -153,17 +148,16 @@ export default function InvoiceForm() {
   };
 
   const handleStatusChange = (value: string) => {
-    const newStatus = value as 'pending' | 'paid' | 'overdue' | 'draft' | 'confirmed';
+    const newStatus = value as 'pending' | 'paid';
 
     // If changing to 'paid', remove dueDate
     // If changing from 'paid' to another status, set a default dueDate
     const updates: Partial<InvoiceFormData> = {
-      status: newStatus
+      status: newStatus,
     };
 
     if (newStatus === 'paid') {
-      // When setting to paid, we don't need dueDate
-      // But we'll keep the existing value in state, just hide it in UI
+      updates.dueDate = "";
     } else if (invoiceData.status === 'paid') {
       // When changing from paid to another status, set a default dueDate
       updates.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -213,6 +207,11 @@ export default function InvoiceForm() {
       return;
     }
 
+    if (invoiceData.status !== "paid" && !invoiceData.dueDate) {
+      toast.error("Due date is required for pending invoices");
+      return;
+    }
+
     // Validate payment details if status is paid
     if (invoiceData.status === 'paid') {
       // Validate PAN numbers if provided
@@ -237,37 +236,17 @@ export default function InvoiceForm() {
         return;
       }
 
-      // Validate payment mode specific fields
+      // Validate optional payment identifiers only when provided.
       if (invoiceData.paymentMode === 'upi') {
-        if (!invoiceData.upiId?.trim()) {
-          toast.error("UPI ID is required for UPI payments");
-          return;
-        }
-
-        // Validate UPI ID format (username@bankhandle or mobilenumber@upi)
-        if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$|^\d{10}@upi$/.test(invoiceData.upiId)) {
+        if (invoiceData.upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$|^\d{10}@upi$/.test(invoiceData.upiId)) {
           toast.error("Invalid UPI ID format. Expected format: username@bankhandle or mobilenumber@upi");
           return;
         }
-
-        // Validate UPI transaction ID format
-        if (invoiceData.transactionId && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(invoiceData.transactionId)) {
-          toast.error("Invalid UPI Transaction ID format. Expected format: 27ABCDE1234F2Z5");
-          return;
-        }
       } else if (invoiceData.paymentMode === 'bank_transfer') {
-        if (!invoiceData.bankAccount?.trim()) {
-          toast.error("Bank account is required for bank transfer");
-          return;
-        }
-
-        // Validate bank account number format
-        if (!/^\d{11}$/.test(invoiceData.bankAccount)) {
+        if (invoiceData.bankAccount && !/^\d{11}$/.test(invoiceData.bankAccount)) {
           toast.error("Invalid Bank Account format. Expected format: 12345678901");
           return;
         }
-
-        // Validate bank transaction ID format
         if (invoiceData.transactionId && !/^UTR[A-Z0-9]{13}$/.test(invoiceData.transactionId)) {
           toast.error("Invalid Bank Transaction ID format. Expected format: UTRRR12345678901");
           return;
@@ -279,27 +258,10 @@ export default function InvoiceForm() {
           return;
         }
       } else if (invoiceData.paymentMode === 'cheque') {
-        // For cheque payments, validate cheque number instead of transaction ID
-        if (!invoiceData.transactionId?.trim()) {
-          toast.error("Cheque number is required for cheque payments");
-          return;
-        }
-
-        // Validate cheque number format (6-digit unique identifier)
-        if (!/^\d{6}$/.test(invoiceData.transactionId)) {
+        if (invoiceData.transactionId && !/^\d{6}$/.test(invoiceData.transactionId)) {
           toast.error("Invalid Cheque Number format. Expected format: 6-digit unique identifier");
           return;
         }
-      } else if (invoiceData.paymentMode === 'cash') {
-        // For cash payments, no transaction ID is required
-        // But if provided, validate based on context
-        if (invoiceData.transactionId) {
-          toast.error("Transaction ID is not required for cash payments");
-          return;
-        }
-      } else if (invoiceData.paymentMode !== 'cash' && !invoiceData.transactionId?.trim()) {
-        toast.error("Transaction ID is required for non-cash payments");
-        return;
       }
     }
 
@@ -314,8 +276,10 @@ export default function InvoiceForm() {
 
       const invoice = await createInvoice(user.uid, {
         ...invoiceData,
+        currency,
+        dueDate: invoiceData.status === "paid" ? "" : invoiceData.dueDate,
         discountRate,
-        ...(invoiceData.status && { status: invoiceData.status }) // Only include status if it's set
+        status: invoiceData.status === "paid" ? "paid" : "pending",
       });
 
       console.log('Invoice created successfully:', invoice);
@@ -559,7 +523,7 @@ export default function InvoiceForm() {
                       </td>
                       <td className="p-2">
                         <div className="flex items-center">
-                          <span className="mr-1 text-muted-foreground">â‚¹</span>
+                          <span className="mr-1 text-muted-foreground">{getCurrencySymbol(currency)}</span>
                           <Input
                             type="number"
                             value={item.unitPrice}
@@ -574,7 +538,7 @@ export default function InvoiceForm() {
                         </div>
                       </td>
                       <td className="p-2 text-center">
-                        â‚¹{item.amount.toFixed(2)}
+                        {formatCurrencyAmount(item.amount, currency)}
                       </td>
                       <td className="p-2 text-center">
                         <Button
@@ -598,7 +562,7 @@ export default function InvoiceForm() {
           <div className="mt-8 space-y-4 ml-auto max-w-xs">
             <div className="flex justify-between">
               <span className="text-sm">Subtotal:</span>
-              <span>â‚¹{subtotal.toFixed(2)}</span>
+              <span>{formatCurrencyAmount(subtotal, currency)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -615,7 +579,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>â‚¹{igstAmount.toFixed(2)}</span>
+              <span>{formatCurrencyAmount(igstAmount, currency)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -632,7 +596,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>â‚¹{cgstAmount.toFixed(2)}</span>
+              <span>{formatCurrencyAmount(cgstAmount, currency)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -649,7 +613,7 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>â‚¹{sgstAmount.toFixed(2)}</span>
+              <span>{formatCurrencyAmount(sgstAmount, currency)}</span>
             </div>
 
             <div className="flex items-center justify-between">
@@ -657,7 +621,7 @@ export default function InvoiceForm() {
                 <span className="text-sm">Discount:</span>
                 <Input
                   type="number"
-                  value={discountRate || ""}
+                  value={discountRate}
                   onChange={handleDiscountRateChange}
                   min="0"
                   max="100"
@@ -666,24 +630,11 @@ export default function InvoiceForm() {
                 />
                 <span className="text-sm">%</span>
               </div>
-              <span>â‚¹{discountAmount.toFixed(2)}</span>
+              <span>{formatCurrencyAmount(discountAmount, currency)}</span>
             </div>
-
-            {subtotal > 1000 && discountRate === 5 && (
-              <div className="text-xs text-accent-foreground">
-                Automatic 5% discount applied for orders over â‚¹1,000
-              </div>
-            )}
-
-            {subtotal > 5000 && discountRate === 10 && (
-              <div className="text-xs text-accent-foreground">
-                Automatic 10% discount applied for orders over â‚¹5,000
-              </div>
-            )}
-
             <div className="pt-2 border-t flex justify-between font-medium">
               <span>Total:</span>
-              <span className="text-lg">â‚¹{total.toFixed(2)}</span>
+              <span className="text-lg">{formatCurrencyAmount(total, currency)}</span>
             </div>
           </div>
 
@@ -704,7 +655,7 @@ export default function InvoiceForm() {
           <div className="mt-4">
             <label htmlFor="status" className="text-sm font-medium">Payment Status</label>
             <Select
-              value={invoiceData.status || 'draft'}
+              value={invoiceData.status || 'pending'}
               onValueChange={handleStatusChange}
             >
               <SelectTrigger>
@@ -740,7 +691,7 @@ export default function InvoiceForm() {
 
                 {invoiceData.paymentMode !== 'cash' && (
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Transaction ID *</label>
+                    <label className="text-sm font-medium mb-1 block">Transaction ID</label>
                     <Input
                       name="transactionId"
                       value={invoiceData.transactionId || ''}
@@ -752,7 +703,7 @@ export default function InvoiceForm() {
 
                 {invoiceData.paymentMode === 'bank_transfer' && (
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Bank Account *</label>
+                    <label className="text-sm font-medium mb-1 block">Bank Account</label>
                     <Input
                       name="bankAccount"
                       value={invoiceData.bankAccount || ''}
@@ -764,7 +715,7 @@ export default function InvoiceForm() {
 
                 {invoiceData.paymentMode === 'upi' && (
                   <div>
-                    <label className="text-sm font-medium mb-1 block">UPI ID *</label>
+                    <label className="text-sm font-medium mb-1 block">UPI ID</label>
                     <Input
                       name="upiId"
                       value={invoiceData.upiId || ''}

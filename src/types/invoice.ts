@@ -6,7 +6,7 @@ export interface InvoiceItem {
   amount: number;
 }
 
-export type InvoiceStatus = "draft" | "sent" | "pending" | "confirmed" | "paid" | "partially_paid" | "overdue" | "cancelled";
+export type InvoiceStatus = "pending" | "paid" | "overdue";
 
 export interface InvoiceData {
   id: string;
@@ -47,8 +47,10 @@ export interface InvoiceData {
   notes: string;
   terms?: string;
   status: InvoiceStatus;
+  currency?: string;
   publicDownloadEnabled?: boolean;
   emailSentAt?: string | null;
+  deletedAt?: string | null;
   paymentMode?: "bank_transfer" | "upi" | "cash" | "card" | "cheque";
   paymentMethod?: string;
   transactionId?: string;
@@ -83,6 +85,7 @@ export interface InvoiceFormData {
   notes: string;
   terms?: string;
   status?: InvoiceStatus;
+  currency?: string;
   paymentMode?: "bank_transfer" | "upi" | "cash" | "card" | "cheque";
   paymentMethod?: string;
   transactionId?: string;

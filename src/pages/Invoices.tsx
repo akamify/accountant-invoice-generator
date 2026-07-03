@@ -6,13 +6,13 @@ import { getUserInvoices } from "@/services/invoiceService";
 import { Button } from "@/components/ui/button";
 import InvoiceCard from "@/components/InvoiceCard";
 import ThreeDBackground from "@/components/ThreeDBackground";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Invoices = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, settings, isAuthenticated, isLoading } = useAuth();
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<InvoiceData[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
@@ -102,14 +102,25 @@ const Invoices = () => {
             <p className="text-muted-foreground">Manage your invoices and track payments</p>
           </div>
 
-          <Button
-            onClick={() => navigate("/invoices/new")}
-            size="lg"
-            className="flex items-center gap-2"
-          >
-            <Plus size={18} />
-            Create Invoice
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/invoices/deleted")}
+              size="lg"
+              className="flex items-center gap-2"
+            >
+              <Trash2 size={18} />
+              Recently Deleted
+            </Button>
+            <Button
+              onClick={() => navigate("/invoices/new")}
+              size="lg"
+              className="flex items-center gap-2"
+            >
+              <Plus size={18} />
+              Create Invoice
+            </Button>
+          </div>
         </div>
 
         {/* Search and Filter Controls */}
@@ -161,6 +172,7 @@ const Invoices = () => {
               <InvoiceCard
                 key={invoice.id}
                 invoice={invoice}
+                currency={settings?.currency}
                 onDelete={handleDeleteInvoice}
               />
             ))}

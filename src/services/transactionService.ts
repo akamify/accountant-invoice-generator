@@ -42,7 +42,7 @@ export const deleteTransaction = async (id: string): Promise<boolean> => {
 
 export const getTransactionsFromInvoices = (invoices: InvoiceData[]): Transaction[] => {
   return invoices
-    .filter(invoice => invoice.status === "paid" || invoice.status === "partially_paid")
+    .filter(invoice => invoice.status === "paid")
     .map(invoice => ({
       id: invoice.id,
       invoiceId: invoice.id,

@@ -27,8 +27,6 @@ function loadEnvFile(fileName) {
 loadEnvFile(".env");
 loadEnvFile(".env.local");
 
-const { default: handler } = await import("../api/[...path].js");
-
 const apiServer = createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://localhost:8080");
@@ -47,6 +45,7 @@ const apiServer = createServer(async (req, res) => {
 
     req.query = Object.fromEntries(url.searchParams.entries());
     req.query.path = pathParts;
+    const { default: handler } = await import(`../api/[...path].js?update=${Date.now()}`);
     await handler(req, res);
   } catch (error) {
     res.statusCode = 500;

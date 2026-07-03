@@ -5,14 +5,17 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Trash2 } from "lucide-react";
 import { deleteInvoice } from "@/services/invoiceService";
 import { toast } from "sonner";
+import { formatCurrencyAmount } from "@/utils/currency";
 
 interface InvoiceCardProps {
   invoice: InvoiceData;
   onDelete?: (invoiceId: string) => void;
+  currency?: string;
 }
 
-export default function InvoiceCard({ invoice, onDelete }: InvoiceCardProps) {
+export default function InvoiceCard({ invoice, onDelete, currency }: InvoiceCardProps) {
   const navigate = useNavigate();
+  const displayCurrency = invoice.currency || currency || "INR";
 
   // Format dates
   const createdDate = new Date(invoice.createdAt).toLocaleDateString();
@@ -35,10 +38,10 @@ export default function InvoiceCard({ invoice, onDelete }: InvoiceCardProps) {
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click event
 
-    if (window.confirm("Are you sure you want to delete this invoice? This action cannot be undone.")) {
+    if (window.confirm("Move this invoice to Recently Deleted?")) {
       try {
         await deleteInvoice(invoice.id);
-        toast.success("Invoice deleted successfully");
+        toast.success("Invoice moved to Recently Deleted");
         if (onDelete) {
           onDelete(invoice.id);
         }
@@ -62,7 +65,7 @@ export default function InvoiceCard({ invoice, onDelete }: InvoiceCardProps) {
           </div>
 
           <div className="text-right">
-            <span className="font-semibold mr-2">â‚¹{invoice.total.toFixed(2)}</span>
+            <span className="font-semibold mr-2">{formatCurrencyAmount(invoice.total, displayCurrency)}</span>
             <div className={`text-xs px-2 py-1 rounded-[4px] mt-1 inline-block ${getStatusColor()}`}>
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </div>

@@ -58,6 +58,13 @@ function getPageMeta(pathname: string): PageMeta {
     };
   }
 
+  if (cleanPath === "/invoices/deleted") {
+    return {
+      title: "Recently Deleted",
+      subtitle: "Review deleted invoices and permanently remove records.",
+    };
+  }
+
   if (cleanPath.startsWith("/invoices/")) {
     return {
       title: "Invoice Details",

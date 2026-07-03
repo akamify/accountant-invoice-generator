@@ -15,10 +15,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { formatCurrencyAmount } from "@/utils/currency";
 
 const Payments = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, settings, isAuthenticated, isLoading } = useAuth();
   const [invoices, setInvoices] = useState<InvoiceData[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +114,7 @@ const Payments = () => {
                       <TableCell className="font-medium">#{invoice.invoiceNumber}</TableCell>
                       <TableCell>{invoice.clientName}</TableCell>
                       <TableCell>{new Date(invoice.updatedAt || invoice.createdAt).toLocaleDateString()}</TableCell>
-                      <TableCell>â‚¹{invoice.total.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrencyAmount(invoice.total, invoice.currency || settings?.currency)}</TableCell>
                       <TableCell>
                         <span className="inline-flex items-center rounded-[4px] bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
                           Paid

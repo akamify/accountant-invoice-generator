@@ -17,6 +17,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrencyAmount } from "@/utils/currency";
 
 type AnalyticsSummary = {
   totalRevenue: number;
@@ -40,6 +42,8 @@ const COLORS = ["#10B981", "#F59E0B", "#EF4444", "#3B82F6", "#64748B"];
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { settings } = useAuth();
+  const currency = settings?.currency || "INR";
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,9 +79,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard title="Total Revenue" value={`₹${(summary?.totalRevenue || 0).toFixed(2)}`} icon={CreditCard} />
-        <MetricCard title="Amount Due" value={`₹${(summary?.amountDue || 0).toFixed(2)}`} icon={FileText} />
-        <MetricCard title="Net Profit" value={`₹${(summary?.netProfit || 0).toFixed(2)}`} icon={TrendingUp} />
+        <MetricCard title="Total Revenue" value={formatCurrencyAmount(summary?.totalRevenue || 0, currency)} icon={CreditCard} />
+        <MetricCard title="Amount Due" value={formatCurrencyAmount(summary?.amountDue || 0, currency)} icon={FileText} />
+        <MetricCard title="Net Profit" value={formatCurrencyAmount(summary?.netProfit || 0, currency)} icon={TrendingUp} />
         <MetricCard title="Total Invoices" value={String(summary?.totalInvoices || 0)} icon={BarChart3} />
       </div>
 
@@ -89,7 +93,7 @@ export default function Dashboard() {
                 <p className="font-medium">Invoice #{alert.invoiceNumber}</p>
                 <p className="text-sm text-muted-foreground">{alert.clientName} • {alert.status}</p>
               </div>
-              <p className="font-semibold text-amber-700">₹{alert.amountDue.toFixed(2)}</p>
+              <p className="font-semibold text-amber-700">{formatCurrencyAmount(alert.amountDue, currency)}</p>
             </button>
           ))}
         </AlertCard>
@@ -101,7 +105,7 @@ export default function Dashboard() {
                 <p className="font-medium">Invoice #{alert.invoiceNumber}</p>
                 <p className="text-sm text-muted-foreground">{alert.clientName} • Due {new Date(alert.dueDate).toLocaleDateString()}</p>
               </div>
-              <p className="font-semibold text-red-700">₹{alert.amountDue.toFixed(2)}</p>
+              <p className="font-semibold text-red-700">{formatCurrencyAmount(alert.amountDue, currency)}</p>
             </button>
           ))}
         </AlertCard>
@@ -133,7 +137,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
                 <YAxis />
-                <Tooltip formatter={(value) => [`₹${value}`, "Amount"]} />
+                <Tooltip formatter={(value) => [formatCurrencyAmount(Number(value || 0), currency), "Amount"]} />
                 <Legend />
                 <Bar dataKey="revenue" fill="#10B981" name="Revenue" />
                 <Bar dataKey="expenses" fill="#EF4444" name="Expenses" />
@@ -154,7 +158,7 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">{new Date(transaction.transactionDate || transaction.createdAt || Date.now()).toLocaleDateString()}</p>
                 </div>
                 <p className={transaction.type === "expense" ? "font-semibold text-red-700" : "font-semibold text-green-700"}>
-                  {transaction.type === "expense" ? "-" : "+"}₹{Number(transaction.amount || 0).toFixed(2)}
+                  {transaction.type === "expense" ? "-" : "+"}{formatCurrencyAmount(Number(transaction.amount || 0), currency)}
                 </p>
               </div>
             )) : <p className="text-sm text-muted-foreground">No recent transactions.</p>}
@@ -170,7 +174,7 @@ export default function Dashboard() {
                   <p className="font-medium">Invoice #{invoice.invoiceNumber}</p>
                   <p className="text-sm text-muted-foreground">{invoice.clientName} • {invoice.status}</p>
                 </div>
-                <p className="font-semibold">₹{Number(invoice.total || 0).toFixed(2)}</p>
+                <p className="font-semibold">{formatCurrencyAmount(Number(invoice.total || 0), currency)}</p>
               </button>
             )) : <p className="text-sm text-muted-foreground">No recent invoices.</p>}
           </CardContent>

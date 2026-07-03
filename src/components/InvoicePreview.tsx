@@ -7,6 +7,7 @@ import { Share2, Printer, Download } from "lucide-react";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import { formatCurrencyAmount } from "@/utils/currency";
 
 // Extend jsPDF type to include lastAutoTable
 interface ExtendedJsPDF extends jsPDF {
@@ -20,6 +21,7 @@ interface InvoicePreviewProps {
 }
 
 export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
+  const currency = invoice.currency || "INR";
   // Limit the number of line items shown in the preview / PDF
   const maxItemsToShow = 10;
   const displayedItems = invoice.items.slice(0, maxItemsToShow);
@@ -34,37 +36,30 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       const doc = new jsPDF("p", "pt", "a4");
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 40;
-      const primaryColor: [number, number, number] = [59, 130, 246];
+      const primaryColor: [number, number, number] = [0, 0, 0];
 
       // Header
-      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-      doc.rect(0, 0, pageWidth, 120, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
-      doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(22);
-      doc.text("INVOICE", margin, 45);
-      doc.setFontSize(10);
-      doc.setTextColor("#fff");
-      doc.text(`Invoice`, margin, 70);
-      doc.text(`Date`, margin, 90);
-      doc.text(`Due Date`, margin, 110);
+      doc.setFontSize(18);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor("#fff");
-      doc.text(`#${invoice.invoiceNumber}`, margin + 90, 70);
-      doc.text(format(new Date(invoice.createdAt), "MMM dd, yyyy"), margin + 90, 90);
-      doc.text(format(new Date(invoice.dueDate), "MMM dd, yyyy"), margin + 90, 110);
+      doc.text("TAX INVOICE", pageWidth / 2, 36, { align: "center" });
+      doc.setLineWidth(0.8);
+      doc.line(margin, 48, pageWidth - margin, 48);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Invoice No: ${invoice.invoiceNumber}`, margin, 68);
+      doc.text(`Date: ${format(new Date(invoice.createdAt), "dd/MM/yyyy")}`, margin, 84);
+      doc.text(`Due Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), "dd/MM/yyyy") : "N/A"}`, margin, 100);
 
       // Company (left)
       const rightX = 40;
       doc.setFontSize(11);
       doc.setTextColor(0, 0, 0);
-      doc.text("From", margin, 150);
+      doc.text("From", margin, 130);
       doc.setFont("helvetica", "normal");
-      doc.text(invoice.companyName, rightX, 170);
+      doc.text(invoice.companyName, rightX, 150);
       doc.setFont("helvetica", "normal");
-      let companyY = 185;
+      let companyY = 165;
       if (invoice.companyAddress) {
         doc.text(invoice.companyAddress, rightX, companyY, { maxWidth: pageWidth - rightX - margin });
         companyY += 15;
@@ -79,11 +74,11 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
       // Client section - positioned on the right side
       const clientXPosition = pageWidth / 2 + 20; // Position on the right half of the page
-      let clientY = 150; // Align with the company section
+      let clientY = 130; // Align with the company section
       doc.setFont("helvetica", "bold");
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(11);
-      doc.text("Bill To", clientXPosition, 150);
+      doc.text("Bill To", clientXPosition, 130);
       clientY += 20;
       doc.setFont("helvetica", "normal");
       doc.setFontSize(11);
@@ -107,8 +102,8 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       const tableBody = displayedItems.map((item) => [
         item.description,
         item.quantity.toString(),
-        `Rs. ${item.unitPrice.toFixed(2)}`,
-        `Rs. ${item.amount.toFixed(2)}`,
+        formatCurrencyAmount(item.unitPrice, currency),
+        formatCurrencyAmount(item.amount, currency),
       ]);
 
       autoTable(doc, {
@@ -116,9 +111,10 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
         head: [tableColumns],
         body: tableBody,
         margin: { left: margin, right: margin },
+        theme: "grid",
         headStyles: {
-          fillColor: primaryColor,
-          textColor: 255,
+          fillColor: [245, 245, 245],
+          textColor: primaryColor,
           fontStyle: "bold",
           fontSize: 10,
         },
@@ -149,35 +145,35 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
       doc.setFont("helvetica", "normal");
 
       doc.text("Subtotal:", labelX, totalsY, { align: "right" });
-      doc.text(`Rs. ${invoice.subtotal.toFixed(2)}`, valueX, totalsY, { align: "right" });
+      doc.text(formatCurrencyAmount(invoice.subtotal, currency), valueX, totalsY, { align: "right" });
       totalsY += 18;
 
       if (invoice.igst > 0) {
         doc.text(`IGST (${invoice.igst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(`Rs. ${invoice.igstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        doc.text(formatCurrencyAmount(invoice.igstAmount || 0, currency), valueX, totalsY, { align: "right" });
         totalsY += 18;
       }
       if (invoice.cgst > 0) {
         doc.text(`CGST (${invoice.cgst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(`Rs. ${invoice.cgstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        doc.text(formatCurrencyAmount(invoice.cgstAmount || 0, currency), valueX, totalsY, { align: "right" });
         totalsY += 18;
       }
       if (invoice.sgst > 0) {
         doc.text(`SGST (${invoice.sgst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(`Rs. ${invoice.sgstAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        doc.text(formatCurrencyAmount(invoice.sgstAmount || 0, currency), valueX, totalsY, { align: "right" });
         totalsY += 18;
       }
 
       if (invoice.discountRate > 0) {
         doc.text(`Discount (${invoice.discountRate}%):`, labelX, totalsY, { align: "right" });
-        doc.text(`Rs. ${invoice.discountAmount.toFixed(2)}`, valueX, totalsY, { align: "right" });
+        doc.text(formatCurrencyAmount(invoice.discountAmount || 0, currency), valueX, totalsY, { align: "right" });
         totalsY += 18;
       }
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.text("TOTAL:", labelX, totalsY, { align: "right" });
-      doc.text(`Rs. ${invoice.total.toFixed(2)}`, valueX, totalsY, { align: "right" });
+      doc.text(formatCurrencyAmount(invoice.total, currency), valueX, totalsY, { align: "right" });
 
       // Notes
       if (invoice.notes) {
@@ -380,8 +376,8 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
                   <tr key={item.id} className="border-b">
                     <td className="py-3 pl-0">{item.description}</td>
                     <td className="py-3 text-right">{item.quantity}</td>
-                    <td className="py-3 text-right">â‚¹{item.unitPrice.toFixed(2)}</td>
-                    <td className="py-3 text-right pr-0">â‚¹{(item.amount || 0).toFixed(2)}</td>
+                    <td className="py-3 text-right">{formatCurrencyAmount(item.unitPrice, currency)}</td>
+                    <td className="py-3 text-right pr-0">{formatCurrencyAmount(item.amount || 0, currency)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -394,27 +390,27 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
               <div className="w-72 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal:</span>
-                  <span>â‚¹{(invoice.subtotal || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.subtotal || 0, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">IGST ({invoice.igst || 0}%):</span>
-                  <span>â‚¹{(invoice.igstAmount || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.igstAmount || 0, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">CGST ({invoice.cgst || 0}%):</span>
-                  <span>â‚¹{(invoice.cgstAmount || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.cgstAmount || 0, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">SGST ({invoice.sgst || 0}%):</span>
-                  <span>â‚¹{(invoice.sgstAmount || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.sgstAmount || 0, currency)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Discount ({invoice.discountRate || 0}%):</span>
-                  <span>â‚¹{(invoice.discountAmount || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.discountAmount || 0, currency)}</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t font-medium text-lg">
                   <span>Total:</span>
-                  <span>â‚¹{(invoice.total || 0).toFixed(2)}</span>
+                  <span>{formatCurrencyAmount(invoice.total || 0, currency)}</span>
                 </div>
               </div>
             </div>

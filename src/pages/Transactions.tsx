@@ -6,8 +6,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createTransaction, deleteTransaction, getTransactions } from "@/services/transactionService";
 import { Transaction } from "@/types/invoice";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { formatCurrencyAmount } from "@/utils/currency";
 
 export default function Transactions() {
+  const { settings } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [type, setType] = useState<"income" | "expense">("income");
@@ -105,7 +108,7 @@ export default function Transactions() {
                   </div>
                   <div className="flex items-center gap-4 text-right">
                     <p className={`font-medium ${transaction.type === "income" || transaction.type === "credit" ? "text-green-600" : "text-red-600"}`}>
-                      {transaction.type === "income" || transaction.type === "credit" ? "+" : "-"}â‚¹{Number(transaction.amount || 0).toFixed(2)}
+                      {transaction.type === "income" || transaction.type === "credit" ? "+" : "-"}{formatCurrencyAmount(Number(transaction.amount || 0), settings?.currency)}
                     </p>
                     <Button variant="outline" size="sm" onClick={() => handleDelete(transaction)} disabled={transaction.source === "invoice"}>
                       Delete

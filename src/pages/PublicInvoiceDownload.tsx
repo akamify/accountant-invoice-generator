@@ -15,7 +15,10 @@ export default function PublicInvoiceDownload() {
       .then(async (response) => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Invoice not found");
-        setInvoice(data.invoice);
+        setInvoice({
+          ...data.invoice,
+          currency: data.invoice?.currency || data.company?.currency || "INR",
+        });
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));

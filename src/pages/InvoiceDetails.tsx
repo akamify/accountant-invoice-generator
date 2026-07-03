@@ -14,7 +14,7 @@ import { toast } from "sonner";
 const InvoiceDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, settings } = useAuth();
   const [invoice, setInvoice] = useState<InvoiceData | null>(null);
   const [isLoadingInvoice, setIsLoadingInvoice] = useState(true);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
@@ -53,7 +53,7 @@ const InvoiceDetails = () => {
     fetchInvoice();
   }, [id, isAuthenticated, navigate, user]);
 
-  const handleStatusUpdate = async (newStatus: 'draft' | 'pending' | 'confirmed' | 'paid' | 'overdue') => {
+  const handleStatusUpdate = async (newStatus: 'paid') => {
     if (!invoice || !id) return;
 
     // If marking as paid, include payment details
@@ -88,35 +88,15 @@ const InvoiceDetails = () => {
 
       // Validate payment mode specific fields
       if (paymentMode === 'upi') {
-        if (!upiId.trim()) {
-          toast.error("UPI ID is required for UPI payment");
-          return;
-        }
-
-        // Validate UPI ID format (username@bankhandle or mobilenumber@upi)
-        if (!/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$|^\d{10}@upi$/.test(upiId)) {
+        if (upiId && !/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$|^\d{10}@upi$/.test(upiId)) {
           toast.error("Invalid UPI ID format. Expected format: username@bankhandle or mobilenumber@upi");
           return;
         }
-
-        // Validate UPI transaction ID format
-        if (transactionId && !/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(transactionId)) {
-          toast.error("Invalid UPI Transaction ID format. Expected format: 27ABCDE1234F2Z5");
-          return;
-        }
       } else if (paymentMode === 'bank_transfer') {
-        if (!bankAccount.trim()) {
-          toast.error("Bank account is required for bank transfer");
-          return;
-        }
-
-        // Validate bank account number format
-        if (!/^\d{11}$/.test(bankAccount)) {
+        if (bankAccount && !/^\d{11}$/.test(bankAccount)) {
           toast.error("Invalid Bank Account format. Expected format: 12345678901");
           return;
         }
-
-        // Validate bank transaction ID format
         if (transactionId && !/^UTR[A-Z0-9]{13}$/.test(transactionId)) {
           toast.error("Invalid Bank Transaction ID format. Expected format: UTRRR12345678901");
           return;
@@ -128,27 +108,10 @@ const InvoiceDetails = () => {
           return;
         }
       } else if (paymentMode === 'cheque') {
-        // For cheque payments, validate cheque number instead of transaction ID
-        if (!transactionId.trim()) {
-          toast.error("Cheque number is required for cheque payments");
-          return;
-        }
-
-        // Validate cheque number format (6-digit unique identifier)
-        if (!/^\d{6}$/.test(transactionId)) {
+        if (transactionId && !/^\d{6}$/.test(transactionId)) {
           toast.error("Invalid Cheque Number format. Expected format: 6-digit unique identifier");
           return;
         }
-      } else if (paymentMode === 'cash') {
-        // For cash payments, no transaction ID is required
-        // But if provided, show error
-        if (transactionId.trim()) {
-          toast.error("Transaction ID is not required for cash payments");
-          return;
-        }
-      } else if (paymentMode !== 'cash' && !transactionId.trim()) {
-        toast.error("Transaction ID is required for non-cash payments");
-        return;
       }
     }
 
@@ -192,11 +155,11 @@ const InvoiceDetails = () => {
   const handleDelete = async () => {
     if (!id) return;
 
-    if (window.confirm("Are you sure you want to delete this invoice? This action cannot be undone.")) {
+    if (window.confirm("Move this invoice to Recently Deleted?")) {
       try {
         await deleteInvoice(id);
-        toast.success("Invoice deleted successfully");
-        navigate("/dashboard");
+        toast.success("Invoice moved to Recently Deleted");
+        navigate("/invoices");
       } catch (error) {
         toast.error("Failed to delete invoice");
         console.error('Error deleting invoice:', error);
@@ -246,16 +209,14 @@ const InvoiceDetails = () => {
               {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
             </div>
 
-            {invoice.status === "pending" && (
-              <>
-                <Button
-                  onClick={() => handleStatusUpdate("paid")}
-                  variant="default"
-                  size="sm"
-                >
-                  Paid
-                </Button>
-              </>
+            {invoice.status !== "paid" && (
+              <Button
+                onClick={() => handleStatusUpdate("paid")}
+                variant="default"
+                size="sm"
+              >
+                Mark Paid
+              </Button>
             )}
 
 
@@ -294,7 +255,7 @@ const InvoiceDetails = () => {
 
               {paymentMode !== 'cash' && (
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Transaction ID *</label>
+                  <label className="text-sm font-medium mb-1 block">Transaction ID</label>
                   <Input
                     value={transactionId}
                     onChange={(e) => setTransactionId(e.target.value)}
@@ -305,7 +266,7 @@ const InvoiceDetails = () => {
 
               {paymentMode === 'bank_transfer' && (
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Bank Account *</label>
+                  <label className="text-sm font-medium mb-1 block">Bank Account</label>
                   <Input
                     value={bankAccount}
                     onChange={(e) => setBankAccount(e.target.value)}
@@ -316,7 +277,7 @@ const InvoiceDetails = () => {
 
               {paymentMode === 'upi' && (
                 <div>
-                  <label className="text-sm font-medium mb-1 block">UPI ID *</label>
+                  <label className="text-sm font-medium mb-1 block">UPI ID</label>
                   <Input
                     value={upiId}
                     onChange={(e) => setUpiId(e.target.value)}
@@ -337,7 +298,7 @@ const InvoiceDetails = () => {
           </div>
         )}
 
-        <InvoicePreview invoice={invoice} />
+        <InvoicePreview invoice={{ ...invoice, currency: invoice.currency || settings?.currency || "INR" }} />
       </main>
     </div>
   );

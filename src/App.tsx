@@ -20,6 +20,7 @@ import { ResetPassword } from "./components/auth/ResetPassword";
 import Payments from "./pages/Payments";
 import Transactions from "./pages/Transactions";
 import Invoices from "./pages/Invoices";
+import DeletedInvoices from "./pages/DeletedInvoices";
 import PublicInvoiceDownload from "./pages/PublicInvoiceDownload";
 import Analytics from "./pages/Analytics";
 import Notifications from "./pages/Notifications";
@@ -67,6 +68,7 @@ const AppContent = () => (
 
     <Route path="/dashboard" element={<ProtectedPage><Dashboard /></ProtectedPage>} />
     <Route path="/invoices" element={<ProtectedPage><Invoices /></ProtectedPage>} />
+    <Route path="/invoices/deleted" element={<ProtectedPage><DeletedInvoices /></ProtectedPage>} />
     <Route path="/invoices/new" element={<ProtectedPage><CreateInvoice /></ProtectedPage>} />
     <Route path="/invoices/:id" element={<ProtectedPage><InvoiceDetails /></ProtectedPage>} />
     <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />

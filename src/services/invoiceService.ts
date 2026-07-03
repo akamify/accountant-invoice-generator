@@ -21,6 +21,11 @@ export const getUserInvoices = async (_userId?: string): Promise<InvoiceData[]> 
   return data.invoices;
 };
 
+export const getDeletedInvoices = async (): Promise<InvoiceData[]> => {
+  const data = await request<{ invoices: InvoiceData[] }>("/api/invoices/deleted");
+  return data.invoices;
+};
+
 export const getInvoiceById = async (invoiceId: string): Promise<InvoiceData | null> => {
   const data = await request<{ invoice: InvoiceData }>(`/api/invoices/${invoiceId}`);
   return data.invoice;
@@ -44,5 +49,10 @@ export const updateInvoice = async (invoiceId: string, invoiceData: Partial<Invo
 
 export const deleteInvoice = async (invoiceId: string): Promise<boolean> => {
   await request(`/api/invoices/${invoiceId}`, { method: "DELETE" });
+  return true;
+};
+
+export const permanentlyDeleteInvoice = async (invoiceId: string): Promise<boolean> => {
+  await request(`/api/invoices/${invoiceId}/permanent`, { method: "DELETE" });
   return true;
 };

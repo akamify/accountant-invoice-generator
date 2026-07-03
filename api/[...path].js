@@ -260,14 +260,15 @@ async function sendPasswordResetEmail(email, resetUrl) {
 }
 
 async function sendInvoiceCreatedEmail(invoice, downloadUrl) {
+  const currency = invoice.currency || "INR";
   await sendMail({
     to: invoice.clientEmail,
     subject: `Invoice ${invoice.invoiceNumber} from Accountant Invoice`,
-    text: `Invoice ${invoice.invoiceNumber} total: ${invoice.total}. Download: ${downloadUrl}`,
+    text: `Invoice ${invoice.invoiceNumber} total: ${currency} ${Number(invoice.total || 0).toFixed(2)}. Download: ${downloadUrl}`,
     html: `
       <p>Hello ${invoice.clientName || "there"},</p>
       <p>Your invoice <strong>${invoice.invoiceNumber}</strong> is ready.</p>
-      <p>Total amount: <strong>₹${Number(invoice.total || 0).toFixed(2)}</strong></p>
+      <p>Total amount: <strong>${currency} ${Number(invoice.total || 0).toFixed(2)}</strong></p>
       <p>Due date: ${invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : "N/A"}</p>
       <p><a href="${downloadUrl}">Download invoice</a></p>
     `,
@@ -275,8 +276,10 @@ async function sendInvoiceCreatedEmail(invoice, downloadUrl) {
 }
 
 function serializeInvoice(doc) {
+  const status = doc.status === "paid" || doc.status === "overdue" ? doc.status : "pending";
   return {
     ...doc,
+    status,
     id: doc._id.toString(),
     _id: undefined,
     publicDownloadTokenHash: undefined,
@@ -325,12 +328,18 @@ function calculateInvoice(input) {
   const discountRate = Number(input.discountRate ?? 0);
   const discount = input.discount !== undefined ? Number(input.discount) : (subtotal * discountRate) / 100;
   const total = Math.max(subtotal + tax - discount, 0);
-  const amountPaid = Math.min(Number(input.amountPaid || 0), total);
+  const requestedStatus = ["pending", "paid", "overdue"].includes(input.status) ? input.status : "pending";
+  const amountPaid = requestedStatus === "paid" ? total : Math.min(Number(input.amountPaid || 0), total);
   const amountDue = Math.max(total - amountPaid, 0);
 
-  let status = input.status || "draft";
-  if (amountDue === 0 && total > 0) status = "paid";
-  else if (amountPaid > 0 && amountDue > 0) status = "partially_paid";
+  let status = requestedStatus === "paid" || amountDue === 0 && total > 0 ? "paid" : "pending";
+  if (
+    amountDue > 0 &&
+    input.dueDate &&
+    new Date(input.dueDate) < new Date()
+  ) {
+    status = "overdue";
+  }
 
   return {
     items: normalizedItems,
@@ -344,6 +353,34 @@ function calculateInvoice(input) {
   };
 }
 
+async function markOverdueInvoices(db) {
+  const now = new Date();
+  const overdue = await db.collection("invoices").find({
+    status: { $nin: ["paid", "overdue"] },
+    amountDue: { $gt: 0 },
+    dueDate: { $nin: ["", null] },
+    deletedAt: { $exists: false },
+  }).toArray();
+
+  for (const invoice of overdue) {
+    if (new Date(invoice.dueDate) >= now) continue;
+    await db.collection("invoices").updateOne(
+      { _id: invoice._id },
+      { $set: { status: "overdue", overdueNotifiedAt: invoice.overdueNotifiedAt || now, updatedAt: now } }
+    );
+    if (!invoice.overdueNotifiedAt) {
+      await createNotification(db, {
+        type: "warning",
+        title: "Invoice overdue",
+        message: `Invoice ${invoice.invoiceNumber} for ${invoice.clientName} is overdue.`,
+        entityType: "invoice",
+        entityId: invoice._id,
+        href: `/invoices/${invoice._id.toString()}`,
+      });
+    }
+  }
+}
+
 async function nextInvoiceNumber(db) {
   const settings = await ensureSettings(db, (await ensureAdminSeeded()).email);
   const count = await db.collection("invoices").countDocuments({});
@@ -351,7 +388,10 @@ async function nextInvoiceNumber(db) {
 }
 
 async function upsertInvoiceTransaction(db, invoice) {
-  if (!invoice.amountPaid || invoice.amountPaid <= 0) return;
+  if (!invoice.amountPaid || invoice.amountPaid <= 0) {
+    await db.collection("transactions").deleteOne({ source: "invoice", invoiceId: invoice._id });
+    return;
+  }
 
   const now = new Date();
   await db.collection("transactions").updateOne(
@@ -560,11 +600,18 @@ async function handleInvoices(req, res, parts) {
   const collection = db.collection("invoices");
 
   if (req.method === "GET" && !id) {
-    const invoices = await collection.find({}).sort({ createdAt: -1 }).toArray();
+    await markOverdueInvoices(db);
+    const invoices = await collection.find({ deletedAt: { $exists: false } }).sort({ createdAt: -1 }).toArray();
+    return json(res, 200, { invoices: invoices.map(serializeInvoice) });
+  }
+
+  if (req.method === "GET" && id === "deleted") {
+    const invoices = await collection.find({ deletedAt: { $exists: true } }).sort({ deletedAt: -1 }).toArray();
     return json(res, 200, { invoices: invoices.map(serializeInvoice) });
   }
 
   if (req.method === "POST" && !id) {
+    const settings = await ensureSettings(db, (await ensureAdminSeeded()).email);
     const body = z.object({
       clientName: z.string().min(1),
       clientEmail: z.string().email().optional().or(z.literal("")),
@@ -573,6 +620,12 @@ async function handleInvoices(req, res, parts) {
       clientAddress: z.string().optional(),
       items: z.array(z.any()).min(1),
     }).passthrough().parse(await readBody(req));
+    if (!["pending", "paid"].includes(body.status || "pending")) {
+      return json(res, 400, { error: "Invoice status must be pending or paid" });
+    }
+    if ((body.status || "pending") === "pending" && !body.dueDate) {
+      return json(res, 400, { error: "Due date is required for pending invoices" });
+    }
     const now = new Date();
     const token = generateToken();
     const calculated = calculateInvoice(body);
@@ -580,6 +633,7 @@ async function handleInvoices(req, res, parts) {
       ...body,
       ...calculated,
       invoiceNumber: body.invoiceNumber || await nextInvoiceNumber(db),
+      currency: body.currency || settings.currency || "INR",
       clientEmail: body.clientEmail || "",
       billingAddress: body.billingAddress || body.clientAddress || "",
       issueDate: body.issueDate || body.createdAt || now.toISOString(),
@@ -603,10 +657,22 @@ async function handleInvoices(req, res, parts) {
       href: `/invoices/${result.insertedId.toString()}`,
     });
     if (saved.clientEmail) {
-      const downloadUrl = `${env("APP_BASE_URL")}/invoice-download/${token}`;
-      await sendInvoiceCreatedEmail(saved, downloadUrl);
-      await collection.updateOne({ _id: result.insertedId }, { $set: { emailSentAt: new Date() } });
-      saved.emailSentAt = new Date();
+      try {
+        const downloadUrl = `${optionalEnv("APP_BASE_URL") || "http://localhost:5173"}/invoice-download/${token}`;
+        await sendInvoiceCreatedEmail(saved, downloadUrl);
+        await collection.updateOne({ _id: result.insertedId }, { $set: { emailSentAt: new Date() } });
+        saved.emailSentAt = new Date();
+      } catch (error) {
+        console.error("Invoice email failed", error);
+        await createNotification(db, {
+          type: "warning",
+          title: "Invoice email failed",
+          message: `Invoice ${saved.invoiceNumber} was created, but email could not be sent.`,
+          entityType: "invoice",
+          entityId: result.insertedId,
+          href: `/invoices/${result.insertedId.toString()}`,
+        });
+      }
     }
     return json(res, 201, { invoice: serializeInvoice(saved), publicDownloadToken: token });
   }
@@ -615,15 +681,22 @@ async function handleInvoices(req, res, parts) {
   const _id = new ObjectId(id);
 
   if (req.method === "GET") {
-    const invoice = await collection.findOne({ _id });
+    await markOverdueInvoices(db);
+    const invoice = await collection.findOne({ _id, deletedAt: { $exists: false } });
     if (!invoice) return json(res, 404, { error: "Invoice not found" });
     return json(res, 200, { invoice: serializeInvoice(invoice) });
   }
 
   if (req.method === "PATCH") {
-    const existing = await collection.findOne({ _id });
+    const existing = await collection.findOne({ _id, deletedAt: { $exists: false } });
     if (!existing) return json(res, 404, { error: "Invoice not found" });
     const body = await readBody(req);
+    if (body.status && body.status !== "paid") {
+      return json(res, 400, { error: "Only pending or overdue invoices can be marked paid" });
+    }
+    if (existing.status === "paid" && body.status) {
+      return json(res, 400, { error: "Paid invoice status cannot be changed" });
+    }
     const merged = { ...existing, ...body };
     const calculated = calculateInvoice(merged);
     const update = { ...body, ...calculated, updatedAt: new Date() };
@@ -634,7 +707,12 @@ async function handleInvoices(req, res, parts) {
   }
 
   if (req.method === "DELETE") {
-    await collection.deleteOne({ _id });
+    if (parts[2] === "permanent") {
+      await collection.deleteOne({ _id, deletedAt: { $exists: true } });
+      await db.collection("transactions").deleteMany({ source: "invoice", invoiceId: _id });
+      return json(res, 200, { success: true });
+    }
+    await collection.updateOne({ _id }, { $set: { deletedAt: new Date(), updatedAt: new Date() } });
     await db.collection("transactions").deleteMany({ source: "invoice", invoiceId: _id });
     return json(res, 200, { success: true });
   }
@@ -714,9 +792,10 @@ async function handleAnalytics(req, res, parts) {
   await requireAuth(req);
   const db = await getDb();
   if (req.method !== "GET" || parts[1] !== "summary") return json(res, 404, { error: "Not found" });
+  await markOverdueInvoices(db);
 
   const [invoices, transactions] = await Promise.all([
-    db.collection("invoices").find({}).sort({ createdAt: -1 }).toArray(),
+    db.collection("invoices").find({ deletedAt: { $exists: false } }).sort({ createdAt: -1 }).toArray(),
     db.collection("transactions").find({}).sort({ transactionDate: -1, createdAt: -1 }).toArray(),
   ]);
   const totalRevenue = transactions.filter((tx) => tx.type === "income").reduce((sum, tx) => sum + Number(tx.amount || 0), 0);
@@ -731,10 +810,13 @@ async function handleAnalytics(req, res, parts) {
     if (tx.type === "expense") monthlyMap[key].expenses += Number(tx.amount || 0);
   }
   const statusMap = {};
-  for (const invoice of invoices) statusMap[invoice.status] = (statusMap[invoice.status] || 0) + 1;
+  for (const invoice of invoices) {
+    const status = invoice.status === "paid" || invoice.status === "overdue" ? invoice.status : "pending";
+    statusMap[status] = (statusMap[status] || 0) + 1;
+  }
   const now = new Date();
   const overdueAlerts = invoices
-    .filter((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled" && invoice.dueDate && new Date(invoice.dueDate) < now)
+    .filter((invoice) => invoice.status !== "paid" && invoice.dueDate && new Date(invoice.dueDate) < now)
     .slice(0, 8)
     .map((invoice) => ({
       id: invoice._id.toString(),
@@ -745,7 +827,7 @@ async function handleAnalytics(req, res, parts) {
       href: `/invoices/${invoice._id.toString()}`,
     }));
   const pendingAlerts = invoices
-    .filter((invoice) => ["sent", "pending", "partially_paid", "overdue"].includes(invoice.status) && Number(invoice.amountDue || 0) > 0)
+    .filter((invoice) => invoice.status !== "paid" && Number(invoice.amountDue || 0) > 0)
     .slice(0, 8)
     .map((invoice) => ({
       id: invoice._id.toString(),
@@ -762,7 +844,7 @@ async function handleAnalytics(req, res, parts) {
     netProfit: totalRevenue - totalExpenses,
     totalInvoices: invoices.length,
     paidInvoices: invoices.filter((invoice) => invoice.status === "paid").length,
-    unpaidInvoices: invoices.filter((invoice) => invoice.status !== "paid" && invoice.status !== "cancelled").length,
+    unpaidInvoices: invoices.filter((invoice) => invoice.status !== "paid").length,
     overdueInvoices: invoices.filter((invoice) => invoice.status === "overdue").length,
     amountDue,
     monthlyRevenue: Object.values(monthlyMap).map((row) => ({ month: row.month, amount: row.revenue })),
@@ -816,11 +898,16 @@ async function handlePublic(req, res, parts) {
   const invoice = await db.collection("invoices").findOne({
     publicDownloadTokenHash: hashToken(parts[2]),
     publicDownloadEnabled: true,
+    deletedAt: { $exists: false },
   });
   if (!invoice) return json(res, 404, { error: "Invoice not found" });
   const settings = await ensureSettings(db, "");
+  const serializedInvoice = serializeInvoice(invoice);
   return json(res, 200, {
-    invoice: serializeInvoice(invoice),
+    invoice: {
+      ...serializedInvoice,
+      currency: serializedInvoice.currency || settings.currency || "INR",
+    },
     company: {
       companyName: settings.companyName,
       companyEmail: settings.companyEmail,

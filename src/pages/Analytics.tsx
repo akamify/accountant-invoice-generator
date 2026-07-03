@@ -29,6 +29,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useAuth } from "@/contexts/AuthContext";
+import { getCurrencySymbol } from "@/utils/currency";
 
 type AnalyticsSummary = {
   totalRevenue: number;
@@ -53,10 +55,10 @@ type TooltipPayload = {
 
 const STATUS_COLORS = ["#2563eb", "#14b8a6", "#f97316", "#ef4444", "#8b5cf6", "#64748b"];
 
-function formatCurrency(value: number) {
+function formatCurrency(value: number, currency = "INR") {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
-    currency: "INR",
+    currency,
     maximumFractionDigits: 0,
   }).format(value || 0);
 }
@@ -69,10 +71,12 @@ function CustomTooltip({
   active,
   label,
   payload,
+  currency,
 }: {
   active?: boolean;
   label?: string;
   payload?: TooltipPayload[];
+  currency?: string;
 }) {
   if (!active || !payload?.length) return null;
 
@@ -82,7 +86,7 @@ function CustomTooltip({
       <div className="space-y-1">
         {payload.map((item) => {
           const isMoney = item.dataKey !== "count" && item.name !== "Invoices";
-          const value = typeof item.value === "number" && isMoney ? formatCurrency(item.value) : item.value;
+          const value = typeof item.value === "number" && isMoney ? formatCurrency(item.value, currency) : item.value;
 
           return (
             <div key={`${item.name}-${item.dataKey}`} className="flex items-center justify-between gap-6 text-sm">
@@ -100,6 +104,9 @@ function CustomTooltip({
 }
 
 export default function Analytics() {
+  const { settings } = useAuth();
+  const currency = settings?.currency || "INR";
+  const axisCurrency = getCurrencySymbol(currency);
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -161,10 +168,10 @@ export default function Analytics() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Metric title="Revenue" value={formatCurrency(summary?.totalRevenue || 0)} icon={ArrowUpRight} tone="emerald" />
-        <Metric title="Expenses" value={formatCurrency(summary?.totalExpenses || 0)} icon={ArrowDownRight} tone="rose" />
-        <Metric title="Net Profit" value={formatCurrency(summary?.netProfit || 0)} icon={Wallet} tone="blue" />
-        <Metric title="Amount Due" value={formatCurrency(summary?.amountDue || 0)} icon={AlertTriangle} tone="amber" />
+        <Metric title="Revenue" value={formatCurrency(summary?.totalRevenue || 0, currency)} icon={ArrowUpRight} tone="emerald" />
+        <Metric title="Expenses" value={formatCurrency(summary?.totalExpenses || 0, currency)} icon={ArrowDownRight} tone="rose" />
+        <Metric title="Net Profit" value={formatCurrency(summary?.netProfit || 0, currency)} icon={Wallet} tone="blue" />
+        <Metric title="Amount Due" value={formatCurrency(summary?.amountDue || 0, currency)} icon={AlertTriangle} tone="amber" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.4fr_0.9fr]">
@@ -173,8 +180,8 @@ export default function Analytics() {
             <LineChart data={monthlyData} margin={{ top: 12, right: 24, left: 0, bottom: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
               <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `â‚¹${Number(value) / 1000}k`} />
-              <Tooltip content={<CustomTooltip />} />
+              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${axisCurrency}${Number(value) / 1000}k`} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
               <Legend />
               <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#2563eb" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 7 }} />
               <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 7 }} />
@@ -199,7 +206,7 @@ export default function Analytics() {
                   <Cell key={entry.status} fill={entry.fill} />
                 ))}
               </Pie>
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -212,8 +219,8 @@ export default function Analytics() {
             <BarChart data={monthlyData} margin={{ top: 12, right: 24, left: 0, bottom: 8 }}>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
               <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `â‚¹${Number(value) / 1000}k`} />
-              <Tooltip content={<CustomTooltip />} />
+              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${axisCurrency}${Number(value) / 1000}k`} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
               <Legend />
               <Bar dataKey="revenue" name="Revenue" fill="#2563eb" radius={[4, 4, 0, 0]} />
               <Bar dataKey="expenses" name="Expenses" fill="#f97316" radius={[4, 4, 0, 0]} />
@@ -257,8 +264,8 @@ export default function Analytics() {
               </defs>
               <CartesianGrid stroke="#e2e8f0" strokeDasharray="4 4" />
               <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `â‚¹${Number(value) / 1000}k`} />
-              <Tooltip content={<CustomTooltip />} />
+              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${axisCurrency}${Number(value) / 1000}k`} />
+              <Tooltip content={<CustomTooltip currency={currency} />} />
               <Area type="monotone" dataKey="profit" name="Profit" stroke="#2563eb" strokeWidth={3} fill="url(#profitFill)" />
             </AreaChart>
           </ResponsiveContainer>
@@ -326,7 +333,7 @@ function RadialMetric({ label, value, color }: { label: string; value: number; c
           <RadialBarChart innerRadius="72%" outerRadius="100%" data={data} startAngle={90} endAngle={-270}>
             <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
             <RadialBar dataKey="value" background={{ fill: "#e5e7eb" }} cornerRadius={8} />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip content={<CustomTooltip currency={currency} />} />
           </RadialBarChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-950">
