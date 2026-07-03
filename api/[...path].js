@@ -1,7 +1,6 @@
 import { MongoClient, ObjectId } from "mongodb";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { parse as parseCookie, serialize } from "cookie";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import { z } from "zod";
@@ -13,6 +12,29 @@ const RESET_MAX_AGE_MS = 30 * 60 * 1000;
 
 let cachedClient = globalThis.__accountantMongoClient;
 let cachedDb = globalThis.__accountantMongoDb;
+
+function parseCookie(header) {
+  return String(header || "")
+    .split(";")
+    .reduce((cookies, part) => {
+      const index = part.indexOf("=");
+      if (index === -1) return cookies;
+      const key = part.slice(0, index).trim();
+      const value = part.slice(index + 1).trim();
+      if (key) cookies[key] = decodeURIComponent(value);
+      return cookies;
+    }, {});
+}
+
+function serializeCookie(name, value, options = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  if (options.maxAge !== undefined) parts.push(`Max-Age=${options.maxAge}`);
+  if (options.path) parts.push(`Path=${options.path}`);
+  if (options.httpOnly) parts.push("HttpOnly");
+  if (options.secure) parts.push("Secure");
+  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
+  return parts.join("; ");
+}
 
 function env(name) {
   const value = process.env[name];
@@ -31,7 +53,7 @@ async function getDb() {
     await cachedClient.connect();
     globalThis.__accountantMongoClient = cachedClient;
   }
-
+  
   const dbName = new URL(uri).pathname.replace("/", "") || "accountant_invoice";
   cachedDb = cachedClient.db(dbName);
   globalThis.__accountantMongoDb = cachedDb;
@@ -69,7 +91,7 @@ function setSessionCookie(res, admin) {
   );
   res.setHeader(
     "Set-Cookie",
-    serialize(SESSION_COOKIE, token, {
+    serializeCookie(SESSION_COOKIE, token, {
       httpOnly: true,
       secure: isProduction(),
       sameSite: "lax",
@@ -82,7 +104,7 @@ function setSessionCookie(res, admin) {
 function clearSessionCookie(res) {
   res.setHeader(
     "Set-Cookie",
-    serialize(SESSION_COOKIE, "", {
+    serializeCookie(SESSION_COOKIE, "", {
       httpOnly: true,
       secure: isProduction(),
       sameSite: "lax",
@@ -714,10 +736,12 @@ export default async function handler(req, res) {
     if (root === "public") return await handlePublic(req, res, path);
     return json(res, 404, { error: "Not found" });
   } catch (error) {
+    console.error(error);
     if (error instanceof z.ZodError) {
       return json(res, 400, { error: "Validation failed", details: error.flatten() });
     }
     const status = error.statusCode || 500;
-    return json(res, status, { error: status === 500 ? "Internal server error" : error.message });
+    const showMessage = status !== 500 || !isProduction();
+    return json(res, status, { error: showMessage ? error.message : "Internal server error" });
   }
 }

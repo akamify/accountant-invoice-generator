@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 5173",
-    "dev:vercel": "vercel dev --listen 8080",
+    "dev": "node scripts/dev-local.mjs",
+    "dev:vercel": "node scripts/dev-local.mjs",
     "dev:vite": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
     "build:dev": "vite build --mode development",
