@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
+import SeoMeta from "@/components/SeoMeta";
 
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -92,6 +93,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <ScrollToTop />
+          <SeoMeta />
           <AppContent />
         </BrowserRouter>
       </TooltipProvider>

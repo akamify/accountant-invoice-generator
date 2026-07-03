@@ -345,15 +345,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-5">
             <NotificationCenter />
 
             <div className="hidden items-center gap-2 sm:flex">
-              <img
+              {/* <img
                 src="/logo.png"
                 alt={companyName}
-                className="h-9 w-9 rounded-[4px] border border-slate-200 bg-white object-contain"
-              />
+                className="h-9 w-9 bg-white object-contain"
+              /> */}
               <div className="hidden min-w-0 lg:block">
                 <p className="max-w-[180px] truncate text-sm font-medium text-slate-900">
                   {companyName}

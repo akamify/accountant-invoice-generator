@@ -28,7 +28,7 @@ export default function Login() {
 
           <div className="relative z-10 my-auto max-w-xl">
             <div className="mb-5 inline-flex rounded-[4px] border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300">
-              Invoice Â· Transactions Â· Analytics
+              Invoice · Transactions · Analytics
             </div>
 
             <h1 className="max-w-lg text-4xl font-semibold leading-tight tracking-[-0.03em]">

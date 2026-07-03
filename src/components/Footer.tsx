@@ -1,5 +1,4 @@
-import { Link } from "react-router-dom";
-import { Github, Twitter } from "lucide-react";
+﻿import { Link } from "react-router-dom";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -31,7 +30,7 @@ const Footer = () => {
                   </svg>
                 </div>
               </div>
-              <span className="font-bold text-lg">Glow Invoice</span>
+              <span className="font-bold text-lg">Accountant Invoice</span>
             </div>
             <p className="text-sm text-muted-foreground">
               Create professional invoices quickly and easily.
@@ -41,7 +40,7 @@ const Footer = () => {
 
         <div className="mt-12 pt-6 border-t flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground">
-            Â© {currentYear} Glow Invoice. All rights reserved.
+            © {currentYear} Accountant Invoice. All rights reserved.
           </p>
           <div className="flex items-center space-x-6 mt-4 md:mt-0">
             <Link

@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p className="text-muted-foreground mb-4">
-              At Glow Invoice Creator, we take your privacy seriously. This Privacy Policy explains how we collect, use, 
+              At Accountant Invoice, we take your privacy seriously. This Privacy Policy explains how we collect, use, 
               disclose, and safeguard your information when you use our services. Please read this Privacy Policy carefully. 
               By accessing or using our services, you agree to the collection and use of information in accordance with this policy.
             </p>
@@ -117,7 +117,7 @@ export default function PrivacyPolicy() {
             <p className="text-muted-foreground mb-6">
               If you have any questions about this Privacy Policy, please contact us at:
               <br />
-              <strong>Email:</strong> privacy@glowinvoice.com
+              <strong>Email:</strong> privacy@accountantinvoice.app
               <br />
               <strong>Address:</strong> 123 Invoice Street, San Francisco, CA 94103, USA
             </p>

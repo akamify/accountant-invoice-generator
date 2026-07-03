@@ -48,7 +48,7 @@ export default function NotificationCenter() {
         <Button variant="outline" size="icon" className="relative rounded-[4px]">
           <Bell className="h-4 w-4" />
           {unreadCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-red-600 px-1 text-[10px] font-semibold text-white">
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-red-600 text-[10px] font-semibold text-white">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
