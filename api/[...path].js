@@ -324,7 +324,6 @@ async function upsertInvoiceTransaction(db, invoice) {
 }
 
 async function handleAuth(req, res, parts) {
-  const db = await getDb();
   const action = parts[1];
 
   if (req.method === "POST" && action === "login") {
@@ -334,6 +333,7 @@ async function handleAuth(req, res, parts) {
     if (!ok) return json(res, 401, { error: "Invalid password" });
 
     if (admin.loginOtpEnabled) {
+      const db = await getDb();
       const otp = generateOtp();
       await db.collection("otp_tokens").insertOne({
         adminId: admin._id,
@@ -353,6 +353,7 @@ async function handleAuth(req, res, parts) {
   }
 
   if (req.method === "POST" && action === "verify-login-otp") {
+    const db = await getDb();
     const body = z.object({ otp: z.string().min(4) }).parse(await readBody(req));
     const admin = await ensureAdminSeeded();
     const latest = await db.collection("otp_tokens").findOne(
@@ -374,11 +375,13 @@ async function handleAuth(req, res, parts) {
 
   if (req.method === "GET" && action === "me") {
     const admin = await requireAuth(req);
+    const db = await getDb();
     const settings = await ensureSettings(db, admin.email);
     return json(res, 200, { admin: publicAdmin(admin), settings });
   }
 
   if (req.method === "POST" && action === "request-password-reset") {
+    const db = await getDb();
     const admin = await ensureAdminSeeded();
     const token = generateToken();
     await db.collection("password_reset_tokens").insertOne({
@@ -393,6 +396,7 @@ async function handleAuth(req, res, parts) {
   }
 
   if (req.method === "POST" && action === "reset-password") {
+    const db = await getDb();
     const body = z.object({ token: z.string().min(16), newPassword: z.string().min(8) }).parse(await readBody(req));
     const tokenHash = hashToken(body.token);
     const reset = await db.collection("password_reset_tokens").findOne({
