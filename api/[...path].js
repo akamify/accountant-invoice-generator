@@ -421,11 +421,13 @@ async function sendLoginAlertEmail(admin, req) {
 }
 
 function serializeInvoice(doc) {
-  const status = doc.status === "paid" || doc.status === "overdue" ? doc.status : "pending";
+  const calculated = calculateInvoice(doc);
+  const normalized = { ...doc, ...calculated };
+  const status = normalized.status === "paid" || normalized.status === "overdue" ? normalized.status : "pending";
   return {
-    ...doc,
+    ...normalized,
     status,
-    id: doc._id.toString(),
+    id: normalized._id.toString(),
     _id: undefined,
     publicDownloadTokenHash: undefined,
   };
