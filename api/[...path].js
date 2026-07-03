@@ -38,7 +38,10 @@ function serializeCookie(name, value, options = {}) {
 function env(name) {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+    throw Object.assign(new Error(`Server misconfigured: missing ${name}`), {
+      statusCode: 500,
+      exposeToClient: true,
+    });
   }
   return value;
 }
@@ -427,7 +430,7 @@ async function handleAuth(req, res, parts) {
     if (admin.loginOtpEnabled) {
       const db = await getDb();
       const otp = generateOtp();
-      await db.collection("otp_tokens").insertOne({
+      const otpResult = await db.collection("otp_tokens").insertOne({
         adminId: admin._id,
         type: "login",
         email: admin.email,
@@ -436,7 +439,16 @@ async function handleAuth(req, res, parts) {
         consumedAt: null,
         createdAt: new Date(),
       });
-      await sendOtpEmail(admin.email, otp, "login");
+      try {
+        await sendOtpEmail(admin.email, otp, "login");
+      } catch (error) {
+        console.error("Login OTP email failed", error);
+        await db.collection("otp_tokens").updateOne({ _id: otpResult.insertedId }, { $set: { consumedAt: new Date() } }).catch(() => {});
+        throw Object.assign(new Error("Login OTP email failed."), {
+          statusCode: 503,
+          exposeToClient: true,
+        });
+      }
       return json(res, 200, { success: true, requiresOtp: true });
     }
 
@@ -447,6 +459,8 @@ async function handleAuth(req, res, parts) {
       title: "Admin login",
       message: "Admin signed in successfully.",
       href: "/profile",
+    }).catch((error) => {
+      console.error("Login notification failed", error);
     });
     return json(res, 200, { success: true, admin: publicAdmin(admin) });
   }
@@ -936,7 +950,7 @@ export default async function handler(req, res) {
       return json(res, 400, { error: "Validation failed", details: error.flatten() });
     }
     const status = error.statusCode || 500;
-    const showMessage = status !== 500 || !isProduction();
+    const showMessage = error.exposeToClient || status !== 500 || !isProduction();
     return json(res, status, { error: showMessage ? error.message : "Internal server error" });
   }
 }

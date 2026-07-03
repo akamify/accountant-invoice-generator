@@ -1,20 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InvoiceData } from "@/types/invoice";
 import { toast } from "sonner";
 import { Share2, Printer, Download } from "lucide-react";
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import { format } from 'date-fns';
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { formatCurrencyAmount } from "@/utils/currency";
-
-// Extend jsPDF type to include lastAutoTable
-interface ExtendedJsPDF extends jsPDF {
-  lastAutoTable?: {
-    finalY: number;
-  };
-}
 
 interface InvoicePreviewProps {
   invoice: InvoiceData;
@@ -22,6 +14,11 @@ interface InvoicePreviewProps {
 
 export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const currency = invoice.currency || "INR";
+  const formatDate = (value?: string) => {
+    if (!value) return "N/A";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "N/A" : date.toLocaleDateString();
+  };
   // Limit the number of line items shown in the preview / PDF
   const maxItemsToShow = 10;
   const displayedItems = invoice.items.slice(0, maxItemsToShow);
@@ -33,196 +30,50 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
     try {
       setIsDownloading(true);
 
-      const doc = new jsPDF("p", "pt", "a4");
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 40;
-      const primaryColor: [number, number, number] = [0, 0, 0];
-
-      // Header
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(18);
-      doc.setFont("helvetica", "bold");
-      doc.text("TAX INVOICE", pageWidth / 2, 36, { align: "center" });
-      doc.setLineWidth(0.8);
-      doc.line(margin, 48, pageWidth - margin, 48);
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Invoice No: ${invoice.invoiceNumber}`, margin, 68);
-      doc.text(`Date: ${format(new Date(invoice.createdAt), "dd/MM/yyyy")}`, margin, 84);
-      doc.text(`Due Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), "dd/MM/yyyy") : "N/A"}`, margin, 100);
-
-      // Company (left)
-      const rightX = 40;
-      doc.setFontSize(11);
-      doc.setTextColor(0, 0, 0);
-      doc.text("From", margin, 130);
-      doc.setFont("helvetica", "normal");
-      doc.text(invoice.companyName, rightX, 150);
-      doc.setFont("helvetica", "normal");
-      let companyY = 165;
-      if (invoice.companyAddress) {
-        doc.text(invoice.companyAddress, rightX, companyY, { maxWidth: pageWidth - rightX - margin });
-        companyY += 15;
-      }
-      if (invoice.companyGstNumber) {
-        doc.text(`GST: ${invoice.companyGstNumber}`, rightX, companyY);
-        companyY += 15;
-      }
-      if (invoice.companyEmail) {
-        doc.text(invoice.companyEmail, rightX, companyY);
+      const invoiceElement = document.getElementById("invoice-preview");
+      if (!invoiceElement) {
+        throw new Error("Invoice preview not found");
       }
 
-      // Client section - positioned on the right side
-      const clientXPosition = pageWidth / 2 + 20; // Position on the right half of the page
-      let clientY = 130; // Align with the company section
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(11);
-      doc.text("Bill To", clientXPosition, 130);
-      clientY += 20;
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(11);
-      doc.text(invoice.clientName, clientXPosition, clientY);
-      clientY += 15;
-      if (invoice.clientAddress) {
-        doc.text(invoice.clientAddress, clientXPosition, clientY, { maxWidth: pageWidth - clientXPosition - margin });
-        clientY += 15;
-      }
-      if (invoice.clientGstNumber) {
-        doc.text(`GST: ${invoice.clientGstNumber}`, clientXPosition, clientY);
-        clientY += 15;
-      }
-      if (invoice.clientEmail) {
-        doc.text(invoice.clientEmail, clientXPosition, clientY);
-      }
+      const canvas = await html2canvas(invoiceElement, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        windowWidth: invoiceElement.scrollWidth,
+        windowHeight: invoiceElement.scrollHeight,
+      });
 
-      // Items table
-      const tableStartY = clientY + 40;
-      const tableColumns = ["DESCRIPTION", "QTY", "PRICE", "AMOUNT"];
-      const tableBody = displayedItems.map((item) => [
-        item.description,
-        item.quantity.toString(),
-        formatCurrencyAmount(item.unitPrice, currency),
-        formatCurrencyAmount(item.amount, currency),
-      ]);
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const pageMargin = 8;
+      const imageWidth = pdfWidth - pageMargin * 2;
+      const imageHeight = (canvas.height * imageWidth) / canvas.width;
+      const pageContentHeight = pdfHeight - pageMargin * 2;
+      const imageData = canvas.toDataURL("image/png", 1);
 
-      autoTable(doc, {
-        startY: tableStartY,
-        head: [tableColumns],
-        body: tableBody,
-        margin: { left: margin, right: margin },
-        theme: "grid",
-        headStyles: {
-          fillColor: [245, 245, 245],
-          textColor: primaryColor,
-          fontStyle: "bold",
-          fontSize: 10,
-        },
-        styles: {
-          fontSize: 10,
-          cellPadding: 6,
-          cellWidth: 'wrap',
-          lineWidth: 0.1,
-          lineColor: [229, 231, 235] // gray-200
-        },
-        columnStyles: {
-          1: { halign: "right", cellWidth: 40 },
-          2: { halign: "right", cellWidth: 80 },
-          3: { halign: "right", cellWidth: 80 },
-        },
-      } as autoTable.UserOptions);
+      let remainingHeight = imageHeight;
+      let positionY = pageMargin;
 
-      const afterTableY =
-        (doc as ExtendedJsPDF).lastAutoTable?.finalY ||
-        tableStartY + 40;
+      pdf.setProperties({
+        title: `Invoice #${invoice.invoiceNumber}`,
+        subject: `Invoice for ${invoice.clientName}`,
+        author: invoice.companyName || "Accountant Invoice",
+        creator: "Accountant Invoice",
+      });
 
-      // Totals
-      let totalsY = afterTableY + 30;
-      const labelX = pageWidth - margin - 150;
-      const valueX = pageWidth - margin;
+      pdf.addImage(imageData, "PNG", pageMargin, positionY, imageWidth, imageHeight);
+      remainingHeight -= pageContentHeight;
 
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-
-      doc.text("Subtotal:", labelX, totalsY, { align: "right" });
-      doc.text(formatCurrencyAmount(invoice.subtotal, currency), valueX, totalsY, { align: "right" });
-      totalsY += 18;
-
-      if (invoice.igst > 0) {
-        doc.text(`IGST (${invoice.igst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(formatCurrencyAmount(invoice.igstAmount || 0, currency), valueX, totalsY, { align: "right" });
-        totalsY += 18;
-      }
-      if (invoice.cgst > 0) {
-        doc.text(`CGST (${invoice.cgst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(formatCurrencyAmount(invoice.cgstAmount || 0, currency), valueX, totalsY, { align: "right" });
-        totalsY += 18;
-      }
-      if (invoice.sgst > 0) {
-        doc.text(`SGST (${invoice.sgst}%):`, labelX, totalsY, { align: "right" });
-        doc.text(formatCurrencyAmount(invoice.sgstAmount || 0, currency), valueX, totalsY, { align: "right" });
-        totalsY += 18;
+      while (remainingHeight > 0) {
+        pdf.addPage();
+        positionY = pageMargin - (imageHeight - remainingHeight);
+        pdf.addImage(imageData, "PNG", pageMargin, positionY, imageWidth, imageHeight);
+        remainingHeight -= pageContentHeight;
       }
 
-      if (invoice.discountRate > 0) {
-        doc.text(`Discount (${invoice.discountRate}%):`, labelX, totalsY, { align: "right" });
-        doc.text(formatCurrencyAmount(invoice.discountAmount || 0, currency), valueX, totalsY, { align: "right" });
-        totalsY += 18;
-      }
-
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text("TOTAL:", labelX, totalsY, { align: "right" });
-      doc.text(formatCurrencyAmount(invoice.total, currency), valueX, totalsY, { align: "right" });
-
-      // Notes
-      if (invoice.notes) {
-        const notesY = totalsY + 40;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("Notes", margin, notesY);
-        doc.setFont("helvetica", "normal");
-        doc.text(invoice.notes, margin, notesY + 16, {
-          maxWidth: pageWidth - margin * 2,
-        });
-      }
-
-      // Payment details if invoice is paid
-      if (invoice.status === 'paid' && invoice.paymentMode) {
-        const paymentY = invoice.notes ? totalsY + 80 : totalsY + 40;
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.text("Payment Details", margin, paymentY);
-        doc.setFont("helvetica", "normal");
-
-        let paymentInfoY = paymentY + 16;
-
-        // Payment Mode
-        doc.text("Payment Mode:", margin, paymentInfoY);
-        const paymentModeText = invoice.paymentMode === 'bank_transfer' ? 'Bank Transfer' :
-          invoice.paymentMode === 'upi' ? 'UPI' :
-            invoice.paymentMode.charAt(0).toUpperCase() + invoice.paymentMode.slice(1);
-        doc.text(paymentModeText, margin + 100, paymentInfoY);
-        paymentInfoY += 15;
-
-        // Transaction ID (except for cash payments)
-        if (invoice.paymentMode !== 'cash' && invoice.transactionId) {
-          doc.text("Transaction ID:", margin, paymentInfoY);
-          doc.text(invoice.transactionId, margin + 100, paymentInfoY);
-          paymentInfoY += 15;
-        }
-
-        // Bank Account or UPI ID
-        if (invoice.paymentMode === 'bank_transfer' && invoice.bankAccount) {
-          doc.text("Bank Account:", margin, paymentInfoY);
-          doc.text(invoice.bankAccount, margin + 100, paymentInfoY);
-        } else if (invoice.paymentMode === 'upi' && invoice.upiId) {
-          doc.text("UPI ID:", margin, paymentInfoY);
-          doc.text(invoice.upiId, margin + 100, paymentInfoY);
-        }
-      }
-
-      doc.save(`invoice-${invoice.invoiceNumber}.pdf`);
+      pdf.save(`invoice-${invoice.invoiceNumber}.pdf`);
       toast.success("Invoice downloaded successfully!");
     } catch (error) {
       console.error("Error generating invoice PDF:", error);
@@ -263,7 +114,7 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end gap-4 print:hidden">
+      <div className="flex items-center justify-end gap-4 pr-20 print:hidden">
         <Button
           variant="outline"
           onClick={handleDownloadPDF}
@@ -347,11 +198,11 @@ export default function InvoicePreview({ invoice }: InvoicePreviewProps) {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Invoice Date:</span>
-                  <span>{new Date(invoice.createdAt).toLocaleDateString()}</span>
+                  <span>{formatDate(invoice.createdAt || invoice.issueDate)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Due Date:</span>
-                  <span>{new Date(invoice.dueDate).toLocaleDateString()}</span>
+                  <span>{formatDate(invoice.dueDate)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
